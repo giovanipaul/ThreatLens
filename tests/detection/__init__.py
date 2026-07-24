@@ -1,0 +1,2 @@
+"""Detection-rule tests."""
+

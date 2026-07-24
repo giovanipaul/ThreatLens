@@ -1,0 +1,9 @@
+Jul 23 21:14:05 web-01 sshd[1852]: Failed password for root from 203.0.113.10 port 49211 ssh2
+Jul 23 21:14:25 web-01 sshd[1855]: Failed password for root from 203.0.113.10 port 49212 ssh2
+Jul 23 21:14:45 web-01 sshd[1856]: Failed password for admin from 203.0.113.10 port 49213 ssh2
+Jul 23 21:15:05 web-01 sshd[1857]: Failed password for deploy from 203.0.113.10 port 49214 ssh2
+Jul 23 21:15:25 web-01 sshd[1858]: Failed password for root from 203.0.113.10 port 49215 ssh2
+Jul 23 21:14:18 web-01 sshd[1853]: Failed password for invalid user admin2 from 198.51.100.24 port 55210 ssh2
+Jul 23 21:15:02 web-01 sshd[1854]: Accepted password for analyst from 192.0.2.5 port 41000 ssh2
+Jul 23 21:15:44 api-01 sshd[1900]: Accepted publickey for deploy from 2001:db8::8 port 50100 ssh2
+Jul 23 21:16:00 web-01 cron[100]: job completed
