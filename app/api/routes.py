@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -26,6 +27,7 @@ router = APIRouter(prefix="/api")
 RepositoryDependency = Annotated[ThreatRepository, Depends(get_repository)]
 MAX_UPLOAD_BYTES = 2 * 1024 * 1024
 MAX_LOG_LINES = 50_000
+ALLOWED_LOG_EXTENSIONS = {".log", ".txt"}
 
 
 @router.post(
@@ -38,6 +40,13 @@ async def import_log(
     file: Annotated[UploadFile, File(description="UTF-8 Linux authentication log")],
     year: Annotated[int | None, Query(ge=1970, le=9999)] = None,
 ) -> ImportSummary:
+    extension = Path(file.filename or "").suffix.lower()
+    if extension not in ALLOWED_LOG_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Log file must use a .log or .txt extension.",
+        )
+
     contents = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(

@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.routes import MAX_LOG_LINES, MAX_UPLOAD_BYTES
 from app.main import create_app
 from app.storage import ThreatRepository
 
@@ -121,12 +122,74 @@ def test_rejects_non_utf8_upload(client: TestClient) -> None:
     assert response.json()["detail"] == "Log file must use UTF-8 encoding."
 
 
+@pytest.mark.parametrize("filename", ["auth.csv", "auth", "auth.log.exe"])
+def test_rejects_unsupported_file_extension(
+    client: TestClient,
+    filename: str,
+) -> None:
+    response = client.post(
+        "/api/logs/import",
+        files={"file": (filename, suspicious_log(), "text/plain")},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "Log file must use a .log or .txt extension."
+    )
+
+
+def test_accepts_supported_extension_case_insensitively(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/logs/import?year=2026",
+        files={"file": ("AUTH.LOG", suspicious_log(), "text/plain")},
+    )
+
+    assert response.status_code == 201
+
+
+def test_rejects_upload_larger_than_two_megabytes(client: TestClient) -> None:
+    response = client.post(
+        "/api/logs/import",
+        files={
+            "file": (
+                "oversized.log",
+                b"x" * (MAX_UPLOAD_BYTES + 1),
+                "text/plain",
+            )
+        },
+    )
+
+    assert response.status_code == 413
+    assert response.json()["detail"] == "Log file must not exceed 2 MB."
+
+
+def test_rejects_upload_with_too_many_lines(client: TestClient) -> None:
+    contents = ("ignored\n" * (MAX_LOG_LINES + 1)).encode()
+    response = client.post(
+        "/api/logs/import",
+        files={"file": ("too-many-lines.txt", contents, "text/plain")},
+    )
+
+    assert response.status_code == 413
+    assert response.json()["detail"] == (
+        "Log file must not exceed 50,000 lines."
+    )
+
+
 def test_validates_query_parameters(client: TestClient) -> None:
     invalid_ip = client.get("/api/events", params={"source_ip": "not-an-ip"})
     invalid_limit = client.get("/api/alerts", params={"limit": 0})
+    invalid_year = client.post(
+        "/api/logs/import",
+        params={"year": 1969},
+        files={"file": ("auth.log", suspicious_log(), "text/plain")},
+    )
 
     assert invalid_ip.status_code == 422
     assert invalid_limit.status_code == 422
+    assert invalid_year.status_code == 422
 
 
 @pytest.mark.parametrize(

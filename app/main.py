@@ -21,7 +21,10 @@ def create_app(repository: ThreatRepository | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         application.state.repository.initialize()
-        yield
+        try:
+            yield
+        finally:
+            application.state.repository.close()
 
     application = FastAPI(
         title="ThreatLens",

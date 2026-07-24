@@ -31,6 +31,10 @@ class ThreatRepository:
     def initialize(self) -> None:
         Base.metadata.create_all(self.engine)
 
+    def close(self) -> None:
+        """Release pooled database connections held by the repository."""
+        self.engine.dispose()
+
     def save_events(self, events: Iterable[SecurityEvent]) -> int:
         records = [self._event_to_record(event) for event in events]
         if not records:

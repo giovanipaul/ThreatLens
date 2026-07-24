@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -10,11 +11,14 @@ from app.storage import ThreatRepository
 
 
 @pytest.fixture
-def repository(tmp_path: Path) -> ThreatRepository:
+def repository(tmp_path: Path) -> Iterator[ThreatRepository]:
     database_path = tmp_path / "test.db"
     repo = ThreatRepository(f"sqlite:///{database_path}")
     repo.initialize()
-    return repo
+    try:
+        yield repo
+    finally:
+        repo.close()
 
 
 def make_event(

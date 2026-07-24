@@ -29,9 +29,13 @@ jobs:
       - name: Run Ruff
         run: python -m ruff check app tests
 
-      - name: Run tests
-        run: python -m pytest -q
+      - name: Run tests with coverage
+        run: >-
+          python -m pytest
+          --cov=app
+          --cov-report=term-missing
+          --cov-fail-under=95
+          -q
 
       - name: Build Docker image
         run: docker build -t threatlens:ci .
-

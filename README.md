@@ -175,8 +175,9 @@ Build the container:
 docker build -t threatlens .
 ```
 
-The current suite contains **53 passing tests** across parsing, detection,
-persistence, reporting, API behavior, and alert lifecycle management.
+The suite covers parsing, detection, persistence, reporting, API behavior,
+upload boundaries, and alert lifecycle management. GitHub Actions enforces a
+minimum of **95% application-code coverage** on every push.
 
 ## Security Decisions and Limitations
 
