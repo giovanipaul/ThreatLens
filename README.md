@@ -28,6 +28,7 @@ skipping malformed or unrelated entries.
 - Upload UTF-8 authentication logs through a validated FastAPI endpoint
 - Query stored events and alerts through documented REST API endpoints
 - Review metrics, filtered alerts, and authentication events in a responsive dashboard
+- Acknowledge, resolve, reopen, and filter alerts by analyst workflow status
 - Download filtered event and alert reports in CSV or JSON format
 - Run the complete application in Docker with persistent SQLite storage
 - Validate every push with GitHub Actions, Ruff, Pytest, and a Docker build
@@ -60,6 +61,7 @@ Open:
 | `POST` | `/api/logs/import` | Parse an uploaded log, run detections, and persist results |
 | `GET` | `/api/events` | Filter stored events by result or source IP |
 | `GET` | `/api/alerts` | Filter generated alerts by severity |
+| `PATCH` | `/api/alerts/{id}/status` | Acknowledge, resolve, or reopen an alert |
 | `GET` | `/api/reports/events.csv` | Download filtered events as CSV |
 | `GET` | `/api/reports/events.json` | Download filtered events as JSON |
 | `GET` | `/api/reports/alerts.csv` | Download filtered alerts as CSV |

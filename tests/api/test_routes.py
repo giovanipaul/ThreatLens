@@ -74,6 +74,41 @@ def test_queries_events_and_alerts(client: TestClient) -> None:
     assert alerts.status_code == 200
     assert len(alerts.json()) == 1
     assert alerts.json()[0]["event_count"] == 5
+    assert alerts.json()[0]["status"] == "open"
+    assert alerts.json()[0]["id"] >= 1
+
+
+def test_updates_and_filters_alert_status(client: TestClient) -> None:
+    client.post(
+        "/api/logs/import?year=2026",
+        files={"file": ("auth.log", suspicious_log(), "text/plain")},
+    )
+    alert_id = client.get("/api/alerts").json()[0]["id"]
+
+    update = client.patch(
+        f"/api/alerts/{alert_id}/status",
+        json={"status": "acknowledged"},
+    )
+    acknowledged = client.get(
+        "/api/alerts",
+        params={"status": "acknowledged"},
+    )
+    open_alerts = client.get("/api/alerts", params={"status": "open"})
+
+    assert update.status_code == 200
+    assert update.json() == {"id": alert_id, "status": "acknowledged"}
+    assert len(acknowledged.json()) == 1
+    assert open_alerts.json() == []
+
+
+def test_returns_not_found_for_missing_alert(client: TestClient) -> None:
+    response = client.patch(
+        "/api/alerts/999/status",
+        json={"status": "resolved"},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Alert not found."
 
 
 def test_rejects_non_utf8_upload(client: TestClient) -> None:

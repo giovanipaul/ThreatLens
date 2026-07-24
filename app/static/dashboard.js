@@ -13,6 +13,7 @@ const elements = {
     eventsTable: document.querySelector("#events-table"),
     eventsEmpty: document.querySelector("#events-empty"),
     severityFilter: document.querySelector("#severity-filter"),
+    alertStatusFilter: document.querySelector("#alert-status-filter"),
     resultFilter: document.querySelector("#result-filter"),
     ipFilter: document.querySelector("#ip-filter"),
     applyEventFilters: document.querySelector("#apply-event-filters"),
@@ -83,14 +84,51 @@ function renderAlerts(alerts) {
         const row = document.createElement("tr");
         row.append(
             createCell(alert.severity, alert.severity),
+            createCell(alert.status, alert.status),
             createCell(alert.title),
             createCell(alert.source_ip),
             createCell(String(alert.event_count)),
             createCell(alert.usernames.join(", ")),
             createCell(formatTimestamp(alert.started_at)),
+            createAlertActionCell(alert),
         );
         elements.alertsTable.append(row);
     }
+}
+
+function createAlertActionCell(alert) {
+    const cell = document.createElement("td");
+    const button = document.createElement("button");
+    const nextState = {
+        open: "acknowledged",
+        acknowledged: "resolved",
+        resolved: "open",
+    }[alert.status];
+    const label = {
+        open: "Acknowledge",
+        acknowledged: "Resolve",
+        resolved: "Reopen",
+    }[alert.status];
+
+    button.type = "button";
+    button.className = "table-action";
+    button.textContent = label;
+    button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+            await fetchJson(`/api/alerts/${alert.id}/status`, {
+                method: "PATCH",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({status: nextState}),
+            });
+            await refreshDashboard();
+        } catch (error) {
+            elements.uploadMessage.textContent = error.message;
+            button.disabled = false;
+        }
+    });
+    cell.append(button);
+    return cell;
 }
 
 async function loadEvents() {
@@ -117,6 +155,9 @@ async function loadAlerts() {
     if (elements.severityFilter.value) {
         parameters.set("severity", elements.severityFilter.value);
     }
+    if (elements.alertStatusFilter.value) {
+        parameters.set("status", elements.alertStatusFilter.value);
+    }
 
     const alerts = await fetchJson(`/api/alerts?${parameters}`);
     const reportParameters = new URLSearchParams(parameters);
@@ -141,7 +182,9 @@ async function refreshDashboard() {
         elements.successfulEvents.textContent = String(
             allEvents.filter((event) => event.result === "success").length,
         );
-        elements.totalAlerts.textContent = String(allAlerts.length);
+        elements.totalAlerts.textContent = String(
+            allAlerts.filter((alert) => alert.status !== "resolved").length,
+        );
         await Promise.all([loadEvents(), loadAlerts()]);
     } catch (error) {
         elements.uploadMessage.textContent = error.message;
@@ -183,6 +226,7 @@ elements.uploadForm.addEventListener("submit", async (event) => {
 });
 
 elements.severityFilter.addEventListener("change", loadAlerts);
+elements.alertStatusFilter.addEventListener("change", loadAlerts);
 elements.applyEventFilters.addEventListener("click", loadEvents);
 
 refreshDashboard();

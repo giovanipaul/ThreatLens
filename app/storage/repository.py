@@ -1,13 +1,19 @@
 from collections.abc import Iterable
 from hashlib import sha256
 
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine, or_, select
 from sqlalchemy.orm import sessionmaker
 
-from app.models.security_alert import AlertSeverity, AlertType, SecurityAlert
+from app.models.security_alert import (
+    AlertSeverity,
+    AlertStatus,
+    AlertType,
+    ManagedAlert,
+    SecurityAlert,
+)
 from app.models.security_event import AuthenticationResult, SecurityEvent
 from app.storage.database import Base, create_database_engine, create_session_factory
-from app.storage.records import AlertRecord, EventRecord
+from app.storage.records import AlertRecord, AlertStateRecord, EventRecord
 
 
 class ThreatRepository:
@@ -98,6 +104,62 @@ class ThreatRepository:
             records = session.scalars(statement.limit(limit)).all()
             return [self._record_to_alert(record) for record in records]
 
+    def list_managed_alerts(
+        self,
+        *,
+        severity: AlertSeverity | None = None,
+        status: AlertStatus | None = None,
+        limit: int = 100,
+    ) -> list[ManagedAlert]:
+        self._validate_limit(limit)
+        statement = (
+            select(AlertRecord, AlertStateRecord.status)
+            .outerjoin(
+                AlertStateRecord,
+                AlertStateRecord.alert_id == AlertRecord.id,
+            )
+            .order_by(AlertRecord.started_at.desc())
+        )
+        if severity is not None:
+            statement = statement.where(AlertRecord.severity == severity.value)
+        if status == AlertStatus.OPEN:
+            statement = statement.where(
+                or_(
+                    AlertStateRecord.status.is_(None),
+                    AlertStateRecord.status == AlertStatus.OPEN.value,
+                )
+            )
+        elif status is not None:
+            statement = statement.where(AlertStateRecord.status == status.value)
+
+        with self.sessions() as session:
+            rows = session.execute(statement.limit(limit)).all()
+            return [
+                self._record_to_managed_alert(record, stored_status)
+                for record, stored_status in rows
+            ]
+
+    def set_alert_status(self, alert_id: int, status: AlertStatus) -> bool:
+        with self.sessions.begin() as session:
+            if session.get(AlertRecord, alert_id) is None:
+                return False
+
+            state = session.scalar(
+                select(AlertStateRecord).where(
+                    AlertStateRecord.alert_id == alert_id
+                )
+            )
+            if state is None:
+                session.add(
+                    AlertStateRecord(
+                        alert_id=alert_id,
+                        status=status.value,
+                    )
+                )
+            else:
+                state.status = status.value
+            return True
+
     @staticmethod
     def _validate_limit(limit: int) -> None:
         if not 1 <= limit <= 1000:
@@ -173,3 +235,14 @@ class ThreatRepository:
             usernames=record.usernames,
         )
 
+    @staticmethod
+    def _record_to_managed_alert(
+        record: AlertRecord,
+        stored_status: str | None,
+    ) -> ManagedAlert:
+        alert = ThreatRepository._record_to_alert(record)
+        return ManagedAlert(
+            **alert.model_dump(),
+            id=record.id,
+            status=AlertStatus(stored_status or AlertStatus.OPEN.value),
+        )

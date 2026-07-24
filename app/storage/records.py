@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, Integer, String, Text
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.storage.database import Base, UTCDateTime
@@ -37,3 +37,15 @@ class AlertRecord(Base):
     ended_at: Mapped[datetime] = mapped_column(UTCDateTime())
     event_count: Mapped[int] = mapped_column(Integer)
     usernames: Mapped[list[str]] = mapped_column(JSON)
+
+
+class AlertStateRecord(Base):
+    __tablename__ = "alert_states"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    alert_id: Mapped[int] = mapped_column(
+        ForeignKey("security_alerts.id", ondelete="CASCADE"),
+        unique=True,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(String(20), index=True)

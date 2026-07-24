@@ -16,6 +16,12 @@ class AlertSeverity(StrEnum):
     HIGH = "high"
 
 
+class AlertStatus(StrEnum):
+    OPEN = "open"
+    ACKNOWLEDGED = "acknowledged"
+    RESOLVED = "resolved"
+
+
 class SecurityAlert(BaseModel):
     """Structured finding produced by a ThreatLens detection rule."""
 
@@ -36,3 +42,10 @@ class SecurityAlert(BaseModel):
         if self.ended_at < self.started_at:
             raise ValueError("Alert end time cannot be before its start time.")
         return self
+
+
+class ManagedAlert(SecurityAlert):
+    """Persisted alert with analyst workflow state."""
+
+    id: int = Field(ge=1)
+    status: AlertStatus = AlertStatus.OPEN

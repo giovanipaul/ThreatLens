@@ -90,6 +90,15 @@
                         <option value="medium">Medium</option>
                     </select>
                 </label>
+                <label>
+                    Status
+                    <select id="alert-status-filter">
+                        <option value="">All statuses</option>
+                        <option value="open">Open</option>
+                        <option value="acknowledged">Acknowledged</option>
+                        <option value="resolved">Resolved</option>
+                    </select>
+                </label>
                 <a id="alerts-csv" class="export-link" href="/api/reports/alerts.csv">CSV</a>
                 <a id="alerts-json" class="export-link" href="/api/reports/alerts.json">JSON</a>
             </div>
@@ -99,11 +108,13 @@
                 <thead>
                 <tr>
                     <th scope="col">Severity</th>
+                    <th scope="col">Status</th>
                     <th scope="col">Finding</th>
                     <th scope="col">Source IP</th>
                     <th scope="col">Attempts</th>
                     <th scope="col">Targeted users</th>
                     <th scope="col">First seen</th>
+                    <th scope="col">Action</th>
                 </tr>
                 </thead>
                 <tbody id="alerts-table"></tbody>

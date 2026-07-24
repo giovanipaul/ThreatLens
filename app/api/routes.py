@@ -10,10 +10,14 @@ from app.detection import (
     PasswordSprayDetector,
     SuspiciousSuccessDetector,
 )
-from app.models.security_alert import AlertSeverity, SecurityAlert
+from app.models.security_alert import (
+    AlertSeverity,
+    AlertStatus,
+    ManagedAlert,
+)
 from app.models.security_event import AuthenticationResult, SecurityEvent
 from app.parsers import LinuxAuthLogParser
-from app.schemas.imports import ImportSummary
+from app.schemas import AlertStatusResponse, AlertStatusUpdate, ImportSummary
 from app.services import alerts_to_csv, events_to_csv, models_to_json
 from app.storage import ThreatRepository
 
@@ -86,13 +90,35 @@ def list_events(
     )
 
 
-@router.get("/alerts", response_model=list[SecurityAlert])
+@router.get("/alerts", response_model=list[ManagedAlert])
 def list_alerts(
     repository: RepositoryDependency,
     severity: AlertSeverity | None = None,
+    status_filter: Annotated[AlertStatus | None, Query(alias="status")] = None,
     limit: Annotated[int, Query(ge=1, le=1000)] = 100,
-) -> list[SecurityAlert]:
-    return repository.list_alerts(severity=severity, limit=limit)
+) -> list[ManagedAlert]:
+    return repository.list_managed_alerts(
+        severity=severity,
+        status=status_filter,
+        limit=limit,
+    )
+
+
+@router.patch(
+    "/alerts/{alert_id}/status",
+    response_model=AlertStatusResponse,
+)
+def update_alert_status(
+    alert_id: int,
+    update: AlertStatusUpdate,
+    repository: RepositoryDependency,
+) -> AlertStatusResponse:
+    if not repository.set_alert_status(alert_id, update.status):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alert not found.",
+        )
+    return AlertStatusResponse(id=alert_id, status=update.status)
 
 
 @router.get("/reports/events.csv")

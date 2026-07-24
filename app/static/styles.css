@@ -378,6 +378,29 @@ td {
     color: var(--green);
 }
 
+.badge.open {
+    background: rgba(110, 168, 254, 0.14);
+    color: var(--blue);
+}
+
+.badge.acknowledged {
+    background: rgba(245, 201, 106, 0.14);
+    color: var(--amber);
+}
+
+.badge.resolved {
+    background: rgba(98, 211, 148, 0.14);
+    color: var(--green);
+}
+
+.table-action {
+    min-height: auto;
+    padding: 0.4rem 0.65rem;
+    background: #223958;
+    color: var(--text);
+    font-size: 0.72rem;
+}
+
 .empty-state {
     display: none;
     margin: 0;

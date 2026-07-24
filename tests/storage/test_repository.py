@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from app.detection import BruteForceDetector
-from app.models.security_alert import AlertSeverity
+from app.models.security_alert import AlertSeverity, AlertStatus
 from app.models.security_event import AuthenticationResult, SecurityEvent
 from app.storage import ThreatRepository
 
@@ -86,6 +86,37 @@ def test_persists_and_filters_alerts(repository: ThreatRepository) -> None:
     assert restored == [alert]
 
 
+def test_manages_alert_lifecycle(repository: ThreatRepository) -> None:
+    events = [make_event(minute) for minute in range(5)]
+    repository.save_alerts(BruteForceDetector().detect(events))
+
+    initial = repository.list_managed_alerts()
+    assert initial[0].status == AlertStatus.OPEN
+
+    assert repository.set_alert_status(
+        initial[0].id,
+        AlertStatus.ACKNOWLEDGED,
+    )
+    acknowledged = repository.list_managed_alerts(
+        status=AlertStatus.ACKNOWLEDGED
+    )
+    assert len(acknowledged) == 1
+    assert acknowledged[0].status == AlertStatus.ACKNOWLEDGED
+
+    assert repository.set_alert_status(
+        initial[0].id,
+        AlertStatus.RESOLVED,
+    )
+    assert repository.list_managed_alerts(status=AlertStatus.OPEN) == []
+    assert len(repository.list_managed_alerts(status=AlertStatus.RESOLVED)) == 1
+
+
+def test_rejects_status_update_for_missing_alert(
+    repository: ThreatRepository,
+) -> None:
+    assert not repository.set_alert_status(999, AlertStatus.RESOLVED)
+
+
 @pytest.mark.parametrize("limit", [0, 1001])
 def test_rejects_invalid_query_limit(
     repository: ThreatRepository,
@@ -93,4 +124,3 @@ def test_rejects_invalid_query_limit(
 ) -> None:
     with pytest.raises(ValueError):
         repository.list_events(limit=limit)
-
