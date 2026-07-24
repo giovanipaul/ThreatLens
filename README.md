@@ -20,6 +20,9 @@ skipping malformed or unrelated entries.
 - Detect repeated failures from one source IP within a configurable time window
 - Assign medium or high severity based on the number of failed attempts
 - Report targeted usernames in structured brute-force alerts
+- Persist normalized events and alerts in SQLite using SQLAlchemy
+- Prevent duplicate event and alert imports with deterministic fingerprints
+- Filter stored events by result or source IP and alerts by severity
 - Provide sample authentication logs for local development
 
 ## Run Locally
