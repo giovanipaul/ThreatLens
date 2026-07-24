@@ -5,7 +5,7 @@ from fastapi.responses import Response
 from pydantic import IPvAnyAddress
 
 from app.api.dependencies import get_repository
-from app.detection import BruteForceDetector
+from app.detection import BruteForceDetector, PasswordSprayDetector
 from app.models.security_alert import AlertSeverity, SecurityAlert
 from app.models.security_event import AuthenticationResult, SecurityEvent
 from app.parsers import LinuxAuthLogParser
@@ -52,7 +52,10 @@ async def import_log(
         )
 
     events = LinuxAuthLogParser(year=year).parse_lines(lines)
-    alerts = BruteForceDetector().detect(events)
+    alerts = [
+        *BruteForceDetector().detect(events),
+        *PasswordSprayDetector().detect(events),
+    ]
 
     return ImportSummary(
         filename=file.filename or "uploaded.log",

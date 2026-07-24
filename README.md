@@ -18,6 +18,7 @@ skipping malformed or unrelated entries.
 - Validate IPv4/IPv6 addresses and port ranges
 - Skip malformed and unsupported log entries without crashing
 - Detect repeated failures from one source IP within a configurable time window
+- Detect password spraying when one source targets many usernames
 - Assign medium or high severity based on the number of failed attempts
 - Report targeted usernames in structured brute-force alerts
 - Persist normalized events and alerts in SQLite using SQLAlchemy
@@ -28,6 +29,7 @@ skipping malformed or unrelated entries.
 - Review metrics, filtered alerts, and authentication events in a responsive dashboard
 - Download filtered event and alert reports in CSV or JSON format
 - Run the complete application in Docker with persistent SQLite storage
+- Validate every push with GitHub Actions, Ruff, Pytest, and a Docker build
 - Provide sample authentication logs for local development
 
 ## Run Locally

@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 class AlertType(StrEnum):
     BRUTE_FORCE = "brute_force"
+    PASSWORD_SPRAYING = "password_spraying"
 
 
 class AlertSeverity(StrEnum):
@@ -34,4 +35,3 @@ class SecurityAlert(BaseModel):
         if self.ended_at < self.started_at:
             raise ValueError("Alert end time cannot be before its start time.")
         return self
-
