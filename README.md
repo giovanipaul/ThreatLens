@@ -23,6 +23,8 @@ skipping malformed or unrelated entries.
 - Persist normalized events and alerts in SQLite using SQLAlchemy
 - Prevent duplicate event and alert imports with deterministic fingerprints
 - Filter stored events by result or source IP and alerts by severity
+- Upload UTF-8 authentication logs through a validated FastAPI endpoint
+- Query stored events and alerts through documented REST API endpoints
 - Provide sample authentication logs for local development
 
 ## Run Locally
@@ -43,6 +45,15 @@ Open:
 
 - API health check: <http://127.0.0.1:8000/health>
 - Interactive API documentation: <http://127.0.0.1:8000/docs>
+
+## API Endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/logs/import` | Parse an uploaded log, run detections, and persist results |
+| `GET` | `/api/events` | Filter stored events by result or source IP |
+| `GET` | `/api/alerts` | Filter generated alerts by severity |
+| `GET` | `/health` | Confirm that the service is running |
 
 ## Run Tests
 
