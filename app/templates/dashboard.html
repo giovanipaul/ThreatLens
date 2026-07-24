@@ -81,14 +81,18 @@
                 <p class="eyebrow">Prioritized findings</p>
                 <h2>Detection alerts</h2>
             </div>
-            <label>
-                Severity
-                <select id="severity-filter">
-                    <option value="">All severities</option>
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                </select>
-            </label>
+            <div class="filters">
+                <label>
+                    Severity
+                    <select id="severity-filter">
+                        <option value="">All severities</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                    </select>
+                </label>
+                <a id="alerts-csv" class="export-link" href="/api/reports/alerts.csv">CSV</a>
+                <a id="alerts-json" class="export-link" href="/api/reports/alerts.json">JSON</a>
+            </div>
         </div>
         <div class="table-shell">
             <table>
@@ -128,6 +132,8 @@
                     <input id="ip-filter" type="search" placeholder="203.0.113.10">
                 </label>
                 <button id="apply-event-filters" class="secondary-button" type="button">Apply</button>
+                <a id="events-csv" class="export-link" href="/api/reports/events.csv">CSV</a>
+                <a id="events-json" class="export-link" href="/api/reports/events.json">JSON</a>
             </div>
         </div>
         <div class="table-shell">
@@ -155,4 +161,3 @@
 </footer>
 </body>
 </html>
-

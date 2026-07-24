@@ -16,6 +16,10 @@ const elements = {
     resultFilter: document.querySelector("#result-filter"),
     ipFilter: document.querySelector("#ip-filter"),
     applyEventFilters: document.querySelector("#apply-event-filters"),
+    alertsCsv: document.querySelector("#alerts-csv"),
+    alertsJson: document.querySelector("#alerts-json"),
+    eventsCsv: document.querySelector("#events-csv"),
+    eventsJson: document.querySelector("#events-json"),
 };
 
 function createCell(value, className = "") {
@@ -99,6 +103,11 @@ async function loadEvents() {
     }
 
     const events = await fetchJson(`/api/events?${parameters}`);
+    const reportParameters = new URLSearchParams(parameters);
+    reportParameters.delete("limit");
+    const query = reportParameters.toString();
+    elements.eventsCsv.href = `/api/reports/events.csv${query ? `?${query}` : ""}`;
+    elements.eventsJson.href = `/api/reports/events.json${query ? `?${query}` : ""}`;
     renderEvents(events);
     return events;
 }
@@ -110,6 +119,11 @@ async function loadAlerts() {
     }
 
     const alerts = await fetchJson(`/api/alerts?${parameters}`);
+    const reportParameters = new URLSearchParams(parameters);
+    reportParameters.delete("limit");
+    const query = reportParameters.toString();
+    elements.alertsCsv.href = `/api/reports/alerts.csv${query ? `?${query}` : ""}`;
+    elements.alertsJson.href = `/api/reports/alerts.json${query ? `?${query}` : ""}`;
     renderAlerts(alerts);
     return alerts;
 }
@@ -172,4 +186,3 @@ elements.severityFilter.addEventListener("change", loadAlerts);
 elements.applyEventFilters.addEventListener("click", loadEvents);
 
 refreshDashboard();
-

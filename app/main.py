@@ -1,3 +1,4 @@
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -14,7 +15,8 @@ APP_DIRECTORY = Path(__file__).parent
 
 
 def create_app(repository: ThreatRepository | None = None) -> FastAPI:
-    threat_repository = repository or ThreatRepository()
+    database_url = os.getenv("THREATLENS_DATABASE_URL", "sqlite:///threatlens.db")
+    threat_repository = repository or ThreatRepository(database_url)
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:

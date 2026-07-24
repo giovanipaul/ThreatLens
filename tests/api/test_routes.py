@@ -93,3 +93,37 @@ def test_validates_query_parameters(client: TestClient) -> None:
     assert invalid_ip.status_code == 422
     assert invalid_limit.status_code == 422
 
+
+@pytest.mark.parametrize(
+    ("endpoint", "media_type", "filename"),
+    [
+        ("/api/reports/events.csv", "text/csv", "threatlens-events.csv"),
+        (
+            "/api/reports/events.json",
+            "application/json",
+            "threatlens-events.json",
+        ),
+        ("/api/reports/alerts.csv", "text/csv", "threatlens-alerts.csv"),
+        (
+            "/api/reports/alerts.json",
+            "application/json",
+            "threatlens-alerts.json",
+        ),
+    ],
+)
+def test_downloads_reports(
+    client: TestClient,
+    endpoint: str,
+    media_type: str,
+    filename: str,
+) -> None:
+    client.post(
+        "/api/logs/import?year=2026",
+        files={"file": ("auth.log", suspicious_log(), "text/plain")},
+    )
+
+    response = client.get(endpoint)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith(media_type)
+    assert filename in response.headers["content-disposition"]

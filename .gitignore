@@ -15,4 +15,4 @@ htmlcov/
 *.db
 *.sqlite
 *.sqlite3
-
+data/

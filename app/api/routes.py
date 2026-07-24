@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import Response
 from pydantic import IPvAnyAddress
 
 from app.api.dependencies import get_repository
@@ -9,6 +10,7 @@ from app.models.security_alert import AlertSeverity, SecurityAlert
 from app.models.security_event import AuthenticationResult, SecurityEvent
 from app.parsers import LinuxAuthLogParser
 from app.schemas.imports import ImportSummary
+from app.services import alerts_to_csv, events_to_csv, models_to_json
 from app.storage import ThreatRepository
 
 router = APIRouter(prefix="/api")
@@ -84,3 +86,77 @@ def list_alerts(
 ) -> list[SecurityAlert]:
     return repository.list_alerts(severity=severity, limit=limit)
 
+
+@router.get("/reports/events.csv")
+def export_events_csv(
+    repository: RepositoryDependency,
+    result: AuthenticationResult | None = None,
+    source_ip: IPvAnyAddress | None = None,
+) -> Response:
+    events = repository.list_events(
+        result=result,
+        source_ip=str(source_ip) if source_ip is not None else None,
+        limit=1000,
+    )
+    return _download_response(
+        events_to_csv(events),
+        filename="threatlens-events.csv",
+        media_type="text/csv",
+    )
+
+
+@router.get("/reports/events.json")
+def export_events_json(
+    repository: RepositoryDependency,
+    result: AuthenticationResult | None = None,
+    source_ip: IPvAnyAddress | None = None,
+) -> Response:
+    events = repository.list_events(
+        result=result,
+        source_ip=str(source_ip) if source_ip is not None else None,
+        limit=1000,
+    )
+    return _download_response(
+        models_to_json(events),
+        filename="threatlens-events.json",
+        media_type="application/json",
+    )
+
+
+@router.get("/reports/alerts.csv")
+def export_alerts_csv(
+    repository: RepositoryDependency,
+    severity: AlertSeverity | None = None,
+) -> Response:
+    alerts = repository.list_alerts(severity=severity, limit=1000)
+    return _download_response(
+        alerts_to_csv(alerts),
+        filename="threatlens-alerts.csv",
+        media_type="text/csv",
+    )
+
+
+@router.get("/reports/alerts.json")
+def export_alerts_json(
+    repository: RepositoryDependency,
+    severity: AlertSeverity | None = None,
+) -> Response:
+    alerts = repository.list_alerts(severity=severity, limit=1000)
+    return _download_response(
+        models_to_json(alerts),
+        filename="threatlens-alerts.json",
+        media_type="application/json",
+    )
+
+
+def _download_response(
+    content: str,
+    *,
+    filename: str,
+    media_type: str,
+) -> Response:
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

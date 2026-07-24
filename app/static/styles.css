@@ -229,6 +229,25 @@ button {
     cursor: pointer;
 }
 
+.export-link {
+    display: inline-grid;
+    place-items: center;
+    align-self: end;
+    min-height: 2.7rem;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 0.6rem;
+    color: var(--cyan);
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.export-link:hover {
+    border-color: var(--cyan);
+    background: rgba(85, 214, 190, 0.08);
+}
+
 button:hover {
     filter: brightness(1.08);
 }
@@ -418,4 +437,3 @@ footer a {
         flex-direction: column;
     }
 }
-

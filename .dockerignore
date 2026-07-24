@@ -1,0 +1,13 @@
+.git
+.gitignore
+.idea
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+htmlcov
+*.db
+*.sqlite
+*.sqlite3
+.DS_Store
+
