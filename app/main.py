@@ -1,10 +1,16 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from app.api.routes import router
 from app.storage import ThreatRepository
+
+APP_DIRECTORY = Path(__file__).parent
 
 
 def create_app(repository: ThreatRepository | None = None) -> FastAPI:
@@ -23,6 +29,19 @@ def create_app(repository: ThreatRepository | None = None) -> FastAPI:
     )
     application.state.repository = threat_repository
     application.include_router(router)
+    application.mount(
+        "/static",
+        StaticFiles(directory=APP_DIRECTORY / "static"),
+        name="static",
+    )
+    templates = Jinja2Templates(directory=APP_DIRECTORY / "templates")
+
+    @application.get("/", response_class=HTMLResponse)
+    def dashboard(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request=request,
+            name="dashboard.html",
+        )
 
     @application.get("/health")
     def health_check() -> dict[str, str]:
@@ -33,4 +52,3 @@ def create_app(repository: ThreatRepository | None = None) -> FastAPI:
 
 
 app = create_app()
-

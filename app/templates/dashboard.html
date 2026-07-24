@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="ThreatLens security event monitoring dashboard">
+    <title>ThreatLens | Security Event Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+    <script src="{{ url_for('static', path='/dashboard.js') }}" defer></script>
+</head>
+<body>
+<header class="site-header">
+    <a class="brand" href="/" aria-label="ThreatLens dashboard">
+        <span class="brand-mark" aria-hidden="true">TL</span>
+        <span>
+            <strong>ThreatLens</strong>
+            <small>Security event intelligence</small>
+        </span>
+    </a>
+    <div class="system-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        Detection engine online
+    </div>
+</header>
+
+<main>
+    <section class="hero">
+        <div>
+            <p class="eyebrow">Authentication monitoring</p>
+            <h1>Investigate login activity before it becomes an incident.</h1>
+            <p class="hero-copy">
+                Import Linux authentication logs, normalize SSH activity, and
+                review prioritized brute-force alerts in one place.
+            </p>
+        </div>
+
+        <form id="upload-form" class="upload-panel">
+            <div>
+                <p class="panel-label">Analyze a log file</p>
+                <p class="upload-help">UTF-8 auth logs · maximum 2 MB</p>
+            </div>
+            <label class="file-picker">
+                <span>Select .log or .txt file</span>
+                <input id="log-file" name="file" type="file" accept=".log,.txt,text/plain" required>
+            </label>
+            <label class="year-field">
+                Log year
+                <input id="log-year" name="year" type="number" min="1970" max="9999">
+            </label>
+            <button id="upload-button" type="submit">Import and analyze</button>
+            <p id="upload-message" class="form-message" role="status" aria-live="polite"></p>
+        </form>
+    </section>
+
+    <section class="metrics" aria-label="Security overview">
+        <article class="metric-card">
+            <span>Total events</span>
+            <strong id="total-events">0</strong>
+            <small>Normalized records</small>
+        </article>
+        <article class="metric-card danger">
+            <span>Failed logins</span>
+            <strong id="failed-events">0</strong>
+            <small>Authentication failures</small>
+        </article>
+        <article class="metric-card success">
+            <span>Successful logins</span>
+            <strong id="successful-events">0</strong>
+            <small>Accepted sessions</small>
+        </article>
+        <article class="metric-card warning">
+            <span>Active alerts</span>
+            <strong id="total-alerts">0</strong>
+            <small>Detected findings</small>
+        </article>
+    </section>
+
+    <section class="data-section">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Prioritized findings</p>
+                <h2>Detection alerts</h2>
+            </div>
+            <label>
+                Severity
+                <select id="severity-filter">
+                    <option value="">All severities</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                </select>
+            </label>
+        </div>
+        <div class="table-shell">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Severity</th>
+                    <th scope="col">Finding</th>
+                    <th scope="col">Source IP</th>
+                    <th scope="col">Attempts</th>
+                    <th scope="col">Targeted users</th>
+                    <th scope="col">First seen</th>
+                </tr>
+                </thead>
+                <tbody id="alerts-table"></tbody>
+            </table>
+            <p id="alerts-empty" class="empty-state">No alerts match the selected filter.</p>
+        </div>
+    </section>
+
+    <section class="data-section">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Normalized telemetry</p>
+                <h2>Authentication events</h2>
+            </div>
+            <div class="filters">
+                <label>
+                    Result
+                    <select id="result-filter">
+                        <option value="">All results</option>
+                        <option value="failure">Failure</option>
+                        <option value="success">Success</option>
+                    </select>
+                </label>
+                <label>
+                    Source IP
+                    <input id="ip-filter" type="search" placeholder="203.0.113.10">
+                </label>
+                <button id="apply-event-filters" class="secondary-button" type="button">Apply</button>
+            </div>
+        </div>
+        <div class="table-shell">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Time</th>
+                    <th scope="col">Result</th>
+                    <th scope="col">Username</th>
+                    <th scope="col">Source IP</th>
+                    <th scope="col">Host</th>
+                    <th scope="col">Method</th>
+                </tr>
+                </thead>
+                <tbody id="events-table"></tbody>
+            </table>
+            <p id="events-empty" class="empty-state">No events match the selected filters.</p>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <span>ThreatLens</span>
+    <a href="/docs">OpenAPI documentation</a>
+</footer>
+</body>
+</html>
+

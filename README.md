@@ -25,6 +25,7 @@ skipping malformed or unrelated entries.
 - Filter stored events by result or source IP and alerts by severity
 - Upload UTF-8 authentication logs through a validated FastAPI endpoint
 - Query stored events and alerts through documented REST API endpoints
+- Review metrics, filtered alerts, and authentication events in a responsive dashboard
 - Provide sample authentication logs for local development
 
 ## Run Locally
@@ -44,6 +45,7 @@ uvicorn app.main:app --reload
 Open:
 
 - API health check: <http://127.0.0.1:8000/health>
+- Security dashboard: <http://127.0.0.1:8000/>
 - Interactive API documentation: <http://127.0.0.1:8000/docs>
 
 ## API Endpoints
