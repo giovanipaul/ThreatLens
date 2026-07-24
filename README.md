@@ -1,66 +1,132 @@
 # ThreatLens
 
-ThreatLens is a Python security log analyzer that will normalize authentication
-events, identify suspicious activity, and present prioritized alerts through a
-searchable dashboard.
+[![CI](https://github.com/giovanipaul/ThreatLens/actions/workflows/ci.yml/badge.svg)](https://github.com/giovanipaul/ThreatLens/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
 
-## Current Status
+ThreatLens is a security log analysis application that converts raw OpenSSH
+authentication logs into normalized events and prioritized alerts. It combines
+a FastAPI backend, configurable detection rules, SQLite persistence, an analyst
+workflow, reporting APIs, and a responsive monitoring dashboard.
 
-The project currently includes a FastAPI foundation and a Linux authentication
-log parser. The parser normalizes supported OpenSSH login events while safely
-skipping malformed or unrelated entries.
+![ThreatLens security monitoring dashboard](docs/images/dashboard.png)
 
-## Implemented Features
+## Why This Project
 
-- Parse successful and failed OpenSSH authentication events
-- Recognize invalid-user login attempts
-- Normalize timestamps, hostnames, usernames, IP addresses, ports, and protocols
-- Validate IPv4/IPv6 addresses and port ranges
-- Skip malformed and unsupported log entries without crashing
-- Detect repeated failures from one source IP within a configurable time window
-- Detect password spraying when one source targets many usernames
-- Correlate successful logins with preceding failures from the same source
-- Assign medium or high severity based on the number of failed attempts
-- Report targeted usernames in structured brute-force alerts
-- Persist normalized events and alerts in SQLite using SQLAlchemy
-- Prevent duplicate event and alert imports with deterministic fingerprints
-- Filter stored events by result or source IP and alerts by severity
-- Upload UTF-8 authentication logs through a validated FastAPI endpoint
-- Query stored events and alerts through documented REST API endpoints
-- Review metrics, filtered alerts, and authentication events in a responsive dashboard
-- Acknowledge, resolve, reopen, and filter alerts by analyst workflow status
-- Download filtered event and alert reports in CSV or JSON format
-- Run the complete application in Docker with persistent SQLite storage
-- Validate every push with GitHub Actions, Ruff, Pytest, and a Docker build
-- Provide sample authentication logs for local development
+Authentication logs are useful only when analysts can parse, correlate, and act
+on them quickly. ThreatLens demonstrates a compact security-monitoring pipeline:
+it accepts raw log data, validates and normalizes each event, runs multiple
+detection strategies, stores results safely, and gives an analyst a focused
+interface for reviewing and managing findings.
 
-## Run Locally
+## Key Features
 
-Activate the virtual environment:
+- Parses successful, failed, and invalid-user OpenSSH authentication events
+- Normalizes timestamps, hosts, usernames, IP addresses, ports, protocols, and results
+- Validates IPv4/IPv6 addresses and safely skips malformed or unsupported lines
+- Detects brute-force attempts from repeated failures by one source
+- Detects password spraying across multiple targeted usernames
+- Correlates successful logins with preceding failures from the same source
+- Assigns structured severity levels and records targeted users and attempt counts
+- Prevents duplicate imports using deterministic SHA-256 fingerprints
+- Persists events, alerts, and analyst status changes in SQLite with SQLAlchemy
+- Supports open, acknowledged, and resolved alert workflows
+- Filters telemetry and alerts by result, source IP, severity, and status
+- Exports filtered events and alerts as CSV or JSON
+- Provides an accessible, responsive analyst dashboard and OpenAPI documentation
+- Runs locally or in Docker with persistent storage
+- Validates every push with Ruff, Pytest, and a Docker build in GitHub Actions
 
-```bash
-source .venv/bin/activate
+## Architecture
+
+```mermaid
+flowchart LR
+    A[OpenSSH auth log] --> B[Validated upload API]
+    B --> C[Linux auth parser]
+    C --> D[Normalized security events]
+    D --> E[Detection engine]
+    E --> F[Structured security alerts]
+    D --> G[(SQLite)]
+    F --> G
+    G --> H[FastAPI query and report APIs]
+    H --> I[Analyst dashboard]
+    I --> J[Open / Acknowledged / Resolved]
 ```
 
-Start the development server:
+The application keeps parsing, detection, persistence, API, and presentation
+responsibilities separate so that each layer remains independently testable.
+
+## Detection Rules
+
+| Rule | Signal | Output |
+|---|---|---|
+| Brute force | Repeated failures from one source within a configurable window | Medium or high alert with attempt count and targeted users |
+| Password spray | One source attempts authentication across several usernames | Structured password-spraying alert |
+| Suspicious success | A successful login follows repeated failures from the same source | Correlated successful-login alert |
+
+Thresholds and time windows are defined in the detection modules and can be
+adjusted without changing the parser or storage layer.
+
+## Quick Start
+
+### Requirements
+
+- Python 3.13
+- `pip`
+- Docker Desktop (optional)
+
+### Run locally
 
 ```bash
+git clone https://github.com/giovanipaul/ThreatLens.git
+cd ThreatLens
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
 Open:
 
-- API health check: <http://127.0.0.1:8000/health>
-- Security dashboard: <http://127.0.0.1:8000/>
+- Dashboard: <http://127.0.0.1:8000/>
 - Interactive API documentation: <http://127.0.0.1:8000/docs>
+- Health check: <http://127.0.0.1:8000/health>
 
-## API Endpoints
+### Run with Docker
+
+```bash
+docker compose up --build
+```
+
+SQLite data is retained in the local `data/` directory. Stop the application
+with:
+
+```bash
+docker compose down
+```
+
+## Sample Walkthrough
+
+1. Start ThreatLens locally or with Docker.
+2. Open the dashboard.
+3. Select `sample_data/auth.log`.
+4. Keep the displayed log year or enter the year represented by the sample.
+5. Choose **Import and analyze**.
+6. Review normalized success and failure events.
+7. Inspect the generated brute-force alert.
+8. Acknowledge, resolve, or reopen the alert.
+9. Filter the tables or export the results as CSV or JSON.
+
+Importing the same file again does not duplicate stored events or alerts.
+
+## API
 
 | Method | Endpoint | Purpose |
 |---|---|---|
 | `POST` | `/api/logs/import` | Parse an uploaded log, run detections, and persist results |
 | `GET` | `/api/events` | Filter stored events by result or source IP |
-| `GET` | `/api/alerts` | Filter generated alerts by severity |
+| `GET` | `/api/alerts` | Filter alerts by severity or analyst status |
 | `PATCH` | `/api/alerts/{id}/status` | Acknowledge, resolve, or reopen an alert |
 | `GET` | `/api/reports/events.csv` | Download filtered events as CSV |
 | `GET` | `/api/reports/events.json` | Download filtered events as JSON |
@@ -68,25 +134,69 @@ Open:
 | `GET` | `/api/reports/alerts.json` | Download filtered alerts as JSON |
 | `GET` | `/health` | Confirm that the service is running |
 
-## Run with Docker
+## Project Structure
 
-Build and start the application:
-
-```bash
-docker compose up --build
+```text
+ThreatLens/
+├── app/
+│   ├── api/          # FastAPI routes and dependencies
+│   ├── detection/    # Brute-force, spray, and correlation rules
+│   ├── models/       # Validated domain models
+│   ├── parsers/      # OpenSSH log normalization
+│   ├── schemas/      # Request and response schemas
+│   ├── services/     # CSV and JSON reporting
+│   ├── static/       # Dashboard JavaScript and CSS
+│   ├── storage/      # SQLAlchemy records and repository
+│   └── templates/    # Jinja2 dashboard
+├── sample_data/      # Safe demonstration log
+├── tests/            # Unit, API, detection, and persistence tests
+├── Dockerfile
+├── compose.yaml
+└── requirements.txt
 ```
 
-Open <http://127.0.0.1:8000>. SQLite data is retained in the local `data/`
-directory, which is excluded from version control.
+## Quality Checks
 
-Stop the application:
-
-```bash
-docker compose down
-```
-
-## Run Tests
+Run the complete test suite:
 
 ```bash
 pytest
 ```
+
+Run static analysis:
+
+```bash
+ruff check .
+```
+
+Build the container:
+
+```bash
+docker build -t threatlens .
+```
+
+The current suite contains **53 passing tests** across parsing, detection,
+persistence, reporting, API behavior, and alert lifecycle management.
+
+## Security Decisions and Limitations
+
+- Uploads are limited to UTF-8 `.log` and `.txt` files no larger than 2 MB.
+- Malformed records are skipped instead of crashing an import.
+- Deterministic fingerprints prevent duplicate records without storing raw logs.
+- SQLAlchemy handles database queries rather than interpolated SQL.
+- Sample data uses documentation-only IP ranges and contains no real credentials.
+- ThreatLens is a portfolio project, not a production SIEM. It does not provide
+  authentication, authorization, multi-user isolation, live log streaming,
+  distributed processing, or encrypted database storage.
+
+See [Security Notes](docs/SECURITY.md) for trust boundaries and safe-use guidance.
+
+## Future Improvements
+
+- Add authenticated, role-based analyst access
+- Ingest additional formats such as systemd journal and Windows events
+- Stream events from monitored hosts rather than relying only on file uploads
+- Make detection thresholds configurable through environment variables
+- Add alert assignment, notes, and audit history
+- Add charts for trends and source-IP activity
+- Support PostgreSQL for multi-user deployments
