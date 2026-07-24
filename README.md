@@ -19,6 +19,7 @@ skipping malformed or unrelated entries.
 - Skip malformed and unsupported log entries without crashing
 - Detect repeated failures from one source IP within a configurable time window
 - Detect password spraying when one source targets many usernames
+- Correlate successful logins with preceding failures from the same source
 - Assign medium or high severity based on the number of failed attempts
 - Report targeted usernames in structured brute-force alerts
 - Persist normalized events and alerts in SQLite using SQLAlchemy

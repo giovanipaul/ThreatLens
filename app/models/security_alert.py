@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 class AlertType(StrEnum):
     BRUTE_FORCE = "brute_force"
     PASSWORD_SPRAYING = "password_spraying"
+    SUCCESS_AFTER_FAILURES = "success_after_failures"
 
 
 class AlertSeverity(StrEnum):
