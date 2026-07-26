@@ -1,9 +1,19 @@
 from collections.abc import Iterable
+from datetime import timedelta
 from hashlib import sha256
 
-from sqlalchemy import Engine, or_, select
+from sqlalchemy import Engine, delete, or_, select
 from sqlalchemy.orm import sessionmaker
 
+from app.auth import (
+    AuthenticatedUser,
+    UserRole,
+    hash_password,
+    new_session_token,
+    session_token_digest,
+    utc_now,
+    verify_password,
+)
 from app.models.security_alert import (
     AlertSeverity,
     AlertStatus,
@@ -13,7 +23,13 @@ from app.models.security_alert import (
 )
 from app.models.security_event import AuthenticationResult, SecurityEvent
 from app.storage.database import Base, create_database_engine, create_session_factory
-from app.storage.records import AlertRecord, AlertStateRecord, EventRecord
+from app.storage.records import (
+    AlertRecord,
+    AlertStateRecord,
+    EventRecord,
+    SessionRecord,
+    UserRecord,
+)
 
 
 class ThreatRepository:
@@ -34,6 +50,97 @@ class ThreatRepository:
     def close(self) -> None:
         """Release pooled database connections held by the repository."""
         self.engine.dispose()
+
+    def bootstrap_admin(self, username: str, password: str) -> None:
+        normalized_username = self._normalize_username(username)
+        with self.sessions.begin() as session:
+            existing = session.scalar(
+                select(UserRecord).where(UserRecord.username == normalized_username)
+            )
+            if existing is None:
+                session.add(
+                    UserRecord(
+                        username=normalized_username,
+                        password_hash=hash_password(password),
+                        role=UserRole.ADMIN.value,
+                        active=True,
+                        created_at=utc_now(),
+                    )
+                )
+
+    def create_user(
+        self,
+        username: str,
+        password: str,
+        role: UserRole = UserRole.ANALYST,
+    ) -> AuthenticatedUser:
+        record = UserRecord(
+            username=self._normalize_username(username),
+            password_hash=hash_password(password),
+            role=role.value,
+            active=True,
+            created_at=utc_now(),
+        )
+        with self.sessions.begin() as session:
+            session.add(record)
+        return self._record_to_user(record)
+
+    def authenticate(self, username: str, password: str) -> AuthenticatedUser | None:
+        with self.sessions() as session:
+            record = session.scalar(
+                select(UserRecord).where(
+                    UserRecord.username == self._normalize_username(username)
+                )
+            )
+            if (
+                record is None
+                or not record.active
+                or not verify_password(password, record.password_hash)
+            ):
+                return None
+            return self._record_to_user(record)
+
+    def create_session(
+        self,
+        user_id: int,
+        *,
+        lifetime: timedelta,
+    ) -> str:
+        token = new_session_token()
+        now = utc_now()
+        with self.sessions.begin() as session:
+            session.add(
+                SessionRecord(
+                    token_digest=session_token_digest(token),
+                    user_id=user_id,
+                    created_at=now,
+                    expires_at=now + lifetime,
+                )
+            )
+        return token
+
+    def get_session_user(self, token: str) -> AuthenticatedUser | None:
+        now = utc_now()
+        with self.sessions.begin() as session:
+            session.execute(delete(SessionRecord).where(SessionRecord.expires_at <= now))
+            record = session.execute(
+                select(UserRecord)
+                .join(SessionRecord, SessionRecord.user_id == UserRecord.id)
+                .where(
+                    SessionRecord.token_digest == session_token_digest(token),
+                    SessionRecord.expires_at > now,
+                    UserRecord.active.is_(True),
+                )
+            ).scalar_one_or_none()
+            return self._record_to_user(record) if record is not None else None
+
+    def delete_session(self, token: str) -> None:
+        with self.sessions.begin() as session:
+            session.execute(
+                delete(SessionRecord).where(
+                    SessionRecord.token_digest == session_token_digest(token)
+                )
+            )
 
     def save_events(self, events: Iterable[SecurityEvent]) -> int:
         records = [self._event_to_record(event) for event in events]
@@ -168,6 +275,21 @@ class ThreatRepository:
     def _validate_limit(limit: int) -> None:
         if not 1 <= limit <= 1000:
             raise ValueError("Limit must be between 1 and 1000.")
+
+    @staticmethod
+    def _normalize_username(username: str) -> str:
+        normalized = username.strip().casefold()
+        if not normalized:
+            raise ValueError("Username must not be empty.")
+        return normalized
+
+    @staticmethod
+    def _record_to_user(record: UserRecord) -> AuthenticatedUser:
+        return AuthenticatedUser(
+            id=record.id,
+            username=record.username,
+            role=UserRole(record.role),
+        )
 
     @staticmethod
     def _event_to_record(event: SecurityEvent) -> EventRecord:

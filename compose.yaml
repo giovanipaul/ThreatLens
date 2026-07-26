@@ -5,7 +5,9 @@ services:
       - "8000:8000"
     environment:
       THREATLENS_DATABASE_URL: sqlite:////app/data/threatlens.db
+      THREATLENS_ADMIN_USERNAME: ${THREATLENS_ADMIN_USERNAME:?Set THREATLENS_ADMIN_USERNAME}
+      THREATLENS_ADMIN_PASSWORD: ${THREATLENS_ADMIN_PASSWORD:?Set THREATLENS_ADMIN_PASSWORD}
+      THREATLENS_SECURE_COOKIES: ${THREATLENS_SECURE_COOKIES:-false}
     volumes:
       - ./data:/app/data
     restart: unless-stopped
-

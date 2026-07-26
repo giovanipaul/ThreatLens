@@ -9,10 +9,20 @@ from app.storage import ThreatRepository
 
 
 @pytest.fixture
-def client(tmp_path: Path) -> TestClient:
+def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    monkeypatch.setenv("THREATLENS_ADMIN_USERNAME", "security-admin")
+    monkeypatch.setenv("THREATLENS_ADMIN_PASSWORD", "correct horse battery staple")
     repository = ThreatRepository(f"sqlite:///{tmp_path / 'api.db'}")
     application = create_app(repository)
     with TestClient(application) as test_client:
+        response = test_client.post(
+            "/login",
+            data={
+                "username": "security-admin",
+                "password": "correct horse battery staple",
+            },
+        )
+        assert response.status_code == 200
         yield test_client
 
 

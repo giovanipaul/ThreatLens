@@ -93,6 +93,67 @@ select {
     font-size: 0.85rem;
 }
 
+.account-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: auto;
+    margin-right: 1rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+.account-controls form {
+    margin: 0;
+}
+
+.logout-button {
+    min-height: auto;
+    padding: 0.45rem 0.7rem;
+    background: #223958;
+    color: var(--text);
+}
+
+.login-page {
+    min-height: 100vh;
+}
+
+.login-shell {
+    display: grid;
+    width: min(28rem, calc(100% - 2rem));
+    min-height: 100vh;
+    align-content: center;
+    gap: 1.5rem;
+    padding: 2rem 0;
+}
+
+.login-panel {
+    display: grid;
+    gap: 1rem;
+    padding: clamp(1.5rem, 5vw, 2.25rem);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: var(--surface-raised);
+    box-shadow: var(--shadow);
+}
+
+.login-panel h1 {
+    margin-bottom: 0.75rem;
+    font-size: 2.5rem;
+}
+
+.login-panel label {
+    display: grid;
+    gap: 0.4rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.form-message.error {
+    color: var(--red);
+}
+
 .status-dot {
     width: 0.55rem;
     height: 0.55rem;

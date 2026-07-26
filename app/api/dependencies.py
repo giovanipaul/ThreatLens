@@ -1,8 +1,35 @@
-from fastapi import Request
+from typing import Annotated
 
+from fastapi import Depends, HTTPException, Request, status
+
+from app.auth import AuthenticatedUser, UserRole
 from app.storage import ThreatRepository
 
 
 def get_repository(request: Request) -> ThreatRepository:
     return request.app.state.repository
 
+
+def get_current_user(
+    request: Request,
+    repository: Annotated[ThreatRepository, Depends(get_repository)],
+) -> AuthenticatedUser:
+    token = request.cookies.get(request.app.state.session_cookie_name)
+    user = repository.get_session_user(token) if token else None
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required.",
+        )
+    return user
+
+
+def require_admin(
+    user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> AuthenticatedUser:
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access required.",
+        )
+    return user

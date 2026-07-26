@@ -35,6 +35,8 @@ interface for reviewing and managing findings.
 - Filters telemetry and alerts by result, source IP, severity, and status
 - Exports filtered events and alerts as CSV or JSON
 - Provides an accessible, responsive analyst dashboard and OpenAPI documentation
+- Authenticates users with salted scrypt password hashes and database-backed sessions
+- Enforces analyst read access and administrator-only import/workflow mutations
 - Runs locally or in Docker with persistent storage
 - Validates every push with Ruff, Pytest, and a Docker build in GitHub Actions
 
@@ -84,6 +86,8 @@ cd ThreatLens
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
+export THREATLENS_ADMIN_USERNAME=admin
+export THREATLENS_ADMIN_PASSWORD='replace-with-a-long-unique-password'
 uvicorn app.main:app --reload
 ```
 
@@ -96,6 +100,8 @@ Open:
 ### Run with Docker
 
 ```bash
+export THREATLENS_ADMIN_USERNAME=admin
+export THREATLENS_ADMIN_PASSWORD='replace-with-a-long-unique-password'
 docker compose up --build
 ```
 
@@ -133,6 +139,17 @@ Importing the same file again does not duplicate stored events or alerts.
 | `GET` | `/api/reports/alerts.csv` | Download filtered alerts as CSV |
 | `GET` | `/api/reports/alerts.json` | Download filtered alerts as JSON |
 | `GET` | `/health` | Confirm that the service is running |
+
+All dashboard and `/api` routes require a database-backed login session except
+the public health check and login page. Analyst accounts can view and export
+events and alerts. Administrators can additionally import logs and change alert
+status. The bootstrap administrator is created once from
+`THREATLENS_ADMIN_USERNAME` and `THREATLENS_ADMIN_PASSWORD`; changing those
+variables later does not overwrite its stored password.
+
+For HTTPS deployments, set `THREATLENS_SECURE_COOKIES=true`. Session lifetime
+defaults to 12 hours and can be set to a positive number of hours with
+`THREATLENS_SESSION_HOURS`.
 
 ## Project Structure
 
@@ -182,19 +199,22 @@ minimum of **95% application-code coverage** on every push.
 ## Security Decisions and Limitations
 
 - Uploads are limited to UTF-8 `.log` and `.txt` files no larger than 2 MB.
+- Passwords use uniquely salted scrypt hashes and must be at least 12 characters.
+- Only SHA-256 digests of random session tokens are persisted; cookies are
+  HttpOnly and SameSite Strict.
 - Malformed records are skipped instead of crashing an import.
 - Deterministic fingerprints prevent duplicate records without storing raw logs.
 - SQLAlchemy handles database queries rather than interpolated SQL.
 - Sample data uses documentation-only IP ranges and contains no real credentials.
 - ThreatLens is a portfolio project, not a production SIEM. It does not provide
-  authentication, authorization, multi-user isolation, live log streaming,
-  distributed processing, or encrypted database storage.
+  multi-tenant data isolation, live log streaming, distributed processing, or
+  encrypted database storage.
 
 See [Security Notes](docs/SECURITY.md) for trust boundaries and safe-use guidance.
 
 ## Future Improvements
 
-- Add authenticated, role-based analyst access
+- Add administrator-managed user provisioning and password rotation
 - Ingest additional formats such as systemd journal and Windows events
 - Stream events from monitored hosts rather than relying only on file uploads
 - Make detection thresholds configurable through environment variables

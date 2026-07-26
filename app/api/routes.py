@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from fastapi.responses import Response
 from pydantic import IPvAnyAddress
 
-from app.api.dependencies import get_repository
+from app.api.dependencies import get_current_user, get_repository, require_admin
+from app.auth import AuthenticatedUser
 from app.detection import (
     BruteForceDetector,
     PasswordSprayDetector,
@@ -25,6 +26,8 @@ from app.storage import ThreatRepository
 router = APIRouter(prefix="/api")
 
 RepositoryDependency = Annotated[ThreatRepository, Depends(get_repository)]
+UserDependency = Annotated[AuthenticatedUser, Depends(get_current_user)]
+AdminDependency = Annotated[AuthenticatedUser, Depends(require_admin)]
 MAX_UPLOAD_BYTES = 2 * 1024 * 1024
 MAX_LOG_LINES = 50_000
 ALLOWED_LOG_EXTENSIONS = {".log", ".txt"}
@@ -37,6 +40,7 @@ ALLOWED_LOG_EXTENSIONS = {".log", ".txt"}
 )
 async def import_log(
     repository: RepositoryDependency,
+    admin: AdminDependency,
     file: Annotated[UploadFile, File(description="UTF-8 Linux authentication log")],
     year: Annotated[int | None, Query(ge=1970, le=9999)] = None,
 ) -> ImportSummary:
@@ -88,6 +92,7 @@ async def import_log(
 @router.get("/events", response_model=list[SecurityEvent])
 def list_events(
     repository: RepositoryDependency,
+    user: UserDependency,
     result: AuthenticationResult | None = None,
     source_ip: IPvAnyAddress | None = None,
     limit: Annotated[int, Query(ge=1, le=1000)] = 100,
@@ -102,6 +107,7 @@ def list_events(
 @router.get("/alerts", response_model=list[ManagedAlert])
 def list_alerts(
     repository: RepositoryDependency,
+    user: UserDependency,
     severity: AlertSeverity | None = None,
     status_filter: Annotated[AlertStatus | None, Query(alias="status")] = None,
     limit: Annotated[int, Query(ge=1, le=1000)] = 100,
@@ -121,6 +127,7 @@ def update_alert_status(
     alert_id: int,
     update: AlertStatusUpdate,
     repository: RepositoryDependency,
+    admin: AdminDependency,
 ) -> AlertStatusResponse:
     if not repository.set_alert_status(alert_id, update.status):
         raise HTTPException(
@@ -133,6 +140,7 @@ def update_alert_status(
 @router.get("/reports/events.csv")
 def export_events_csv(
     repository: RepositoryDependency,
+    user: UserDependency,
     result: AuthenticationResult | None = None,
     source_ip: IPvAnyAddress | None = None,
 ) -> Response:
@@ -151,6 +159,7 @@ def export_events_csv(
 @router.get("/reports/events.json")
 def export_events_json(
     repository: RepositoryDependency,
+    user: UserDependency,
     result: AuthenticationResult | None = None,
     source_ip: IPvAnyAddress | None = None,
 ) -> Response:
@@ -169,6 +178,7 @@ def export_events_json(
 @router.get("/reports/alerts.csv")
 def export_alerts_csv(
     repository: RepositoryDependency,
+    user: UserDependency,
     severity: AlertSeverity | None = None,
 ) -> Response:
     alerts = repository.list_alerts(severity=severity, limit=1000)
@@ -182,6 +192,7 @@ def export_alerts_csv(
 @router.get("/reports/alerts.json")
 def export_alerts_json(
     repository: RepositoryDependency,
+    user: UserDependency,
     severity: AlertSeverity | None = None,
 ) -> Response:
     alerts = repository.list_alerts(severity=severity, limit=1000)

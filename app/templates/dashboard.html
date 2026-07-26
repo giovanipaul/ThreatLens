@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
     <script src="{{ url_for('static', path='/dashboard.js') }}" defer></script>
 </head>
-<body>
+<body data-role="{{ user.role.value }}">
 <header class="site-header">
     <a class="brand" href="/" aria-label="ThreatLens dashboard">
         <span class="brand-mark" aria-hidden="true">TL</span>
@@ -17,6 +17,12 @@
             <small>Security event intelligence</small>
         </span>
     </a>
+    <div class="account-controls">
+        <span>{{ user.username }} · {{ user.role.value }}</span>
+        <form method="post" action="/logout">
+            <button class="logout-button" type="submit">Sign out</button>
+        </form>
+    </div>
     <div class="system-status">
         <span class="status-dot" aria-hidden="true"></span>
         Detection engine online
@@ -34,7 +40,7 @@
             </p>
         </div>
 
-        <form id="upload-form" class="upload-panel">
+        <form id="upload-form" class="upload-panel"{% if user.role.value != "admin" %} hidden{% endif %}>
             <div>
                 <p class="panel-label">Analyze a log file</p>
                 <p class="upload-help">UTF-8 auth logs · maximum 2 MB</p>

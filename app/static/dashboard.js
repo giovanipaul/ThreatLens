@@ -22,6 +22,7 @@ const elements = {
     eventsCsv: document.querySelector("#events-csv"),
     eventsJson: document.querySelector("#events-json"),
 };
+const isAdmin = document.body.dataset.role === "admin";
 
 function createCell(value, className = "") {
     const cell = document.createElement("td");
@@ -98,6 +99,10 @@ function renderAlerts(alerts) {
 
 function createAlertActionCell(alert) {
     const cell = document.createElement("td");
+    if (!isAdmin) {
+        cell.textContent = "View only";
+        return cell;
+    }
     const button = document.createElement("button");
     const nextState = {
         open: "acknowledged",

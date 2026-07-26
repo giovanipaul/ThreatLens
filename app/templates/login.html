@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Sign in to ThreatLens">
+    <title>Sign in | ThreatLens</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+</head>
+<body class="login-page">
+<main class="login-shell">
+    <a class="brand" href="/login" aria-label="ThreatLens sign in">
+        <span class="brand-mark" aria-hidden="true">TL</span>
+        <span>
+            <strong>ThreatLens</strong>
+            <small>Security event intelligence</small>
+        </span>
+    </a>
+    <form class="login-panel" method="post" action="/login">
+        <div>
+            <p class="eyebrow">Authorized access</p>
+            <h1>Sign in</h1>
+            <p class="hero-copy">Use your ThreatLens analyst or administrator account.</p>
+        </div>
+        <label>
+            Username
+            <input name="username" autocomplete="username" required autofocus>
+        </label>
+        <label>
+            Password
+            <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit">Sign in</button>
+        {% if error %}<p class="form-message error" role="alert">{{ error }}</p>{% endif %}
+    </form>
+</main>
+</body>
+</html>
