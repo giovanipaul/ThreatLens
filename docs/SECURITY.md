@@ -40,11 +40,12 @@ the public internet or treated as a replacement for a production SIEM.
 - Persistent audit records for authentication and privileged actions
 - Append-only per-alert history with actor identity, state transition, and notes
 - Bounded, startup-validated detection and upload configuration
+- Versioned Alembic migrations with SQLite and PostgreSQL integration tests
 
 ## Known Limitations
 
 - No TLS termination within the application
-- SQLite data is not encrypted at rest
+- Database encryption at rest depends on the selected storage platform
 - No malware scanning for uploaded files
 - No general API rate limiting or per-user quotas
 - Login throttling is process-local rather than shared across workers

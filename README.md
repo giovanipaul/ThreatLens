@@ -134,6 +134,31 @@ with:
 docker compose down
 ```
 
+## Database Migrations and PostgreSQL
+
+ThreatLens applies versioned Alembic migrations automatically during startup.
+Existing pre-Alembic SQLite databases are safely baselined without deleting
+stored events, alerts, users, sessions, or audit history.
+
+Migration commands are also available for development:
+
+```bash
+alembic current
+alembic upgrade head
+alembic downgrade -1
+```
+
+SQLite remains the zero-configuration default. To use PostgreSQL, create a
+database and provide a psycopg SQLAlchemy URL:
+
+```bash
+export THREATLENS_DATABASE_URL='postgresql+psycopg://threatlens:password@localhost/threatlens'
+uvicorn app.main:app
+```
+
+CI exercises the repository and migrations against PostgreSQL 17 in addition
+to the default SQLite suite.
+
 ## Sample Walkthrough
 
 1. Start ThreatLens locally or with Docker.
@@ -191,6 +216,7 @@ ThreatLens/
 │   ├── api/          # FastAPI routes and dependencies
 │   ├── detection/    # Brute-force, spray, and correlation rules
 │   ├── models/       # Validated domain models
+│   ├── migrations/   # Versioned Alembic database schema
 │   ├── parsers/      # OpenSSH log normalization
 │   ├── schemas/      # Request and response schemas
 │   ├── services/     # CSV and JSON reporting
@@ -200,6 +226,7 @@ ThreatLens/
 ├── sample_data/      # Safe demonstration log
 ├── tests/            # Unit, API, detection, and persistence tests
 ├── Dockerfile
+├── alembic.ini
 ├── compose.yaml
 └── requirements.txt
 ```
@@ -246,10 +273,8 @@ See [Security Notes](docs/SECURITY.md) for trust boundaries and safe-use guidanc
 
 ## Future Improvements
 
-- Add administrator-managed user provisioning and password rotation
 - Ingest additional formats such as systemd journal and Windows events
 - Stream events from monitored hosts rather than relying only on file uploads
-- Make detection thresholds configurable through environment variables
-- Add alert assignment, notes, and audit history
+- Add alert assignment and investigation ownership
 - Add charts for trends and source-IP activity
-- Support PostgreSQL for multi-user deployments
+- Add shared rate limiting and centralized metrics for multi-worker deployments

@@ -25,7 +25,8 @@ from app.models.security_alert import (
     SecurityAlert,
 )
 from app.models.security_event import AuthenticationResult, SecurityEvent
-from app.storage.database import Base, create_database_engine, create_session_factory
+from app.storage.database import create_database_engine, create_session_factory
+from app.storage.migrations import run_migrations
 from app.storage.records import (
     AlertHistoryRecord,
     AlertRecord,
@@ -50,7 +51,7 @@ class ThreatRepository:
         self.sessions: sessionmaker = create_session_factory(self.engine)
 
     def initialize(self) -> None:
-        Base.metadata.create_all(self.engine)
+        run_migrations(self.engine)
 
     def close(self) -> None:
         """Release pooled database connections held by the repository."""

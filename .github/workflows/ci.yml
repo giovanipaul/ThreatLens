@@ -12,6 +12,20 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: threatlens
+          POSTGRES_PASSWORD: threatlens-test
+          POSTGRES_DB: threatlens_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U threatlens -d threatlens_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Check out repository
@@ -30,6 +44,8 @@ jobs:
         run: python -m ruff check app tests
 
       - name: Run tests with coverage
+        env:
+          TEST_POSTGRES_URL: postgresql+psycopg://threatlens:threatlens-test@localhost:5432/threatlens_test
         run: >-
           python -m pytest
           --cov=app
