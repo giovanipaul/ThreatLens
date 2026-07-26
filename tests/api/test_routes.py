@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.routes import MAX_LOG_LINES, MAX_UPLOAD_BYTES
+from app.config import DetectionSettings
 from app.main import create_app
 from app.storage import ThreatRepository
 
@@ -40,6 +41,66 @@ def suspicious_log() -> str:
             for second in range(5)
         ]
     )
+
+
+def test_uses_configured_detection_thresholds(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("THREATLENS_ADMIN_USERNAME", "admin")
+    monkeypatch.setenv("THREATLENS_ADMIN_PASSWORD", "secure admin password")
+    application = create_app(
+        ThreatRepository(f"sqlite:///{tmp_path / 'configured.db'}"),
+        detection_settings=DetectionSettings(brute_force_threshold=6),
+    )
+    with TestClient(application) as configured_client:
+        configured_client.post(
+            "/login",
+            data={
+                "username": "admin",
+                "password": "secure admin password",
+            },
+        )
+        configured_client.headers["X-CSRF-Token"] = configured_client.cookies[
+            "threatlens_csrf"
+        ]
+        response = configured_client.post(
+            "/api/logs/import?year=2026",
+            files={"file": ("auth.log", suspicious_log(), "text/plain")},
+        )
+
+    assert response.status_code == 201
+    assert response.json()["alerts_generated"] == 0
+
+
+def test_uses_configured_log_line_limit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("THREATLENS_ADMIN_USERNAME", "admin")
+    monkeypatch.setenv("THREATLENS_ADMIN_PASSWORD", "secure admin password")
+    application = create_app(
+        ThreatRepository(f"sqlite:///{tmp_path / 'line-limit.db'}"),
+        detection_settings=DetectionSettings(max_log_lines=2),
+    )
+    with TestClient(application) as configured_client:
+        configured_client.post(
+            "/login",
+            data={
+                "username": "admin",
+                "password": "secure admin password",
+            },
+        )
+        configured_client.headers["X-CSRF-Token"] = configured_client.cookies[
+            "threatlens_csrf"
+        ]
+        response = configured_client.post(
+            "/api/logs/import",
+            files={"file": ("auth.log", "one\ntwo\nthree", "text/plain")},
+        )
+
+    assert response.status_code == 413
+    assert response.json()["detail"] == "Log file must not exceed 2 lines."
 
 
 def test_imports_log_and_generates_alert(client: TestClient) -> None:

@@ -1,3 +1,4 @@
+from datetime import timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -8,11 +9,13 @@ from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import (
     get_current_user,
+    get_detection_settings,
     get_repository,
     require_admin,
     require_csrf,
 )
 from app.auth import AuthenticatedUser, UserRole
+from app.config import DetectionSettings
 from app.detection import (
     BruteForceDetector,
     PasswordSprayDetector,
@@ -42,6 +45,10 @@ from app.storage import ThreatRepository
 router = APIRouter(prefix="/api")
 
 RepositoryDependency = Annotated[ThreatRepository, Depends(get_repository)]
+SettingsDependency = Annotated[
+    DetectionSettings,
+    Depends(get_detection_settings),
+]
 UserDependency = Annotated[AuthenticatedUser, Depends(get_current_user)]
 AdminDependency = Annotated[AuthenticatedUser, Depends(require_admin)]
 CsrfDependency = Annotated[None, Depends(require_csrf)]
@@ -57,6 +64,7 @@ ALLOWED_LOG_EXTENSIONS = {".log", ".txt"}
 )
 async def import_log(
     repository: RepositoryDependency,
+    settings: SettingsDependency,
     admin: AdminDependency,
     csrf: CsrfDependency,
     file: Annotated[UploadFile, File(description="UTF-8 Linux authentication log")],
@@ -69,11 +77,11 @@ async def import_log(
             detail="Log file must use a .log or .txt extension.",
         )
 
-    contents = await file.read(MAX_UPLOAD_BYTES + 1)
-    if len(contents) > MAX_UPLOAD_BYTES:
+    contents = await file.read(settings.max_upload_bytes + 1)
+    if len(contents) > settings.max_upload_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail="Log file must not exceed 2 MB.",
+            detail=f"Log file must not exceed {settings.max_upload_mb} MB.",
         )
 
     try:
@@ -84,17 +92,30 @@ async def import_log(
             detail="Log file must use UTF-8 encoding.",
         ) from error
 
-    if len(lines) > MAX_LOG_LINES:
+    if len(lines) > settings.max_log_lines:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail="Log file must not exceed 50,000 lines.",
+            detail=(
+                f"Log file must not exceed {settings.max_log_lines:,} lines."
+            ),
         )
 
     events = LinuxAuthLogParser(year=year).parse_lines(lines)
     alerts = [
-        *BruteForceDetector().detect(events),
-        *PasswordSprayDetector().detect(events),
-        *SuspiciousSuccessDetector().detect(events),
+        *BruteForceDetector(
+            failure_threshold=settings.brute_force_threshold,
+            window=timedelta(seconds=settings.brute_force_window_seconds),
+        ).detect(events),
+        *PasswordSprayDetector(
+            username_threshold=settings.password_spray_user_threshold,
+            window=timedelta(seconds=settings.password_spray_window_seconds),
+        ).detect(events),
+        *SuspiciousSuccessDetector(
+            failure_threshold=settings.suspicious_success_failure_threshold,
+            window=timedelta(
+                seconds=settings.suspicious_success_window_seconds
+            ),
+        ).detect(events),
     ]
 
     summary = ImportSummary(

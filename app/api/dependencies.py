@@ -4,11 +4,16 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Request, status
 
 from app.auth import AuthenticatedUser, UserRole
+from app.config import DetectionSettings
 from app.storage import ThreatRepository
 
 
 def get_repository(request: Request) -> ThreatRepository:
     return request.app.state.repository
+
+
+def get_detection_settings(request: Request) -> DetectionSettings:
+    return request.app.state.detection_settings
 
 
 def get_current_user(

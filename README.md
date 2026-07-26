@@ -72,7 +72,24 @@ responsibilities separate so that each layer remains independently testable.
 | Suspicious success | A successful login follows repeated failures from the same source | Correlated successful-login alert |
 
 Thresholds and time windows are defined in the detection modules and can be
-adjusted without changing the parser or storage layer.
+adjusted through validated environment settings without changing code.
+
+## Configuration
+
+Copy `.env.example` to `.env` for Docker Compose, or export the settings before
+starting Uvicorn. ThreatLens validates every numeric setting during startup and
+fails clearly when a value is malformed or outside its safe range.
+
+| Variable | Default | Purpose |
+|---|---:|---|
+| `BRUTE_FORCE_THRESHOLD` | `5` | Failed attempts required from one source |
+| `BRUTE_FORCE_WINDOW_SECONDS` | `300` | Brute-force correlation window |
+| `PASSWORD_SPRAY_USER_THRESHOLD` | `5` | Unique usernames required for a spray alert |
+| `PASSWORD_SPRAY_WINDOW_SECONDS` | `600` | Password-spray correlation window |
+| `SUSPICIOUS_SUCCESS_FAILURE_THRESHOLD` | `3` | Failures required before a successful login |
+| `SUSPICIOUS_SUCCESS_WINDOW_SECONDS` | `600` | Suspicious-success correlation window |
+| `MAX_UPLOAD_MB` | `2` | Maximum uploaded log size |
+| `MAX_LOG_LINES` | `50000` | Maximum lines accepted per import |
 
 ## Quick Start
 
@@ -104,6 +121,7 @@ Open:
 ### Run with Docker
 
 ```bash
+cp .env.example .env
 export THREATLENS_ADMIN_USERNAME=admin
 export THREATLENS_ADMIN_PASSWORD='replace-with-a-long-unique-password'
 docker compose up --build

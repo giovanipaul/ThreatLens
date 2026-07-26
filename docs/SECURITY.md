@@ -39,6 +39,7 @@ the public internet or treated as a replacement for a production SIEM.
 - Password rotation with automatic session revocation
 - Persistent audit records for authentication and privileged actions
 - Append-only per-alert history with actor identity, state transition, and notes
+- Bounded, startup-validated detection and upload configuration
 
 ## Known Limitations
 

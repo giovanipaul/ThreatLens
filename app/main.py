@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.api.routes import router
 from app.auth import new_csrf_token
+from app.config import DetectionSettings
 from app.storage import ThreatRepository
 
 APP_DIRECTORY = Path(__file__).parent
@@ -23,9 +24,14 @@ LOGIN_ATTEMPTS = 5
 LOGIN_WINDOW_SECONDS = 300
 
 
-def create_app(repository: ThreatRepository | None = None) -> FastAPI:
+def create_app(
+    repository: ThreatRepository | None = None,
+    *,
+    detection_settings: DetectionSettings | None = None,
+) -> FastAPI:
     database_url = os.getenv("THREATLENS_DATABASE_URL", "sqlite:///threatlens.db")
     threat_repository = repository or ThreatRepository(database_url)
+    settings = detection_settings or DetectionSettings.from_environment()
     admin_username = os.getenv("THREATLENS_ADMIN_USERNAME")
     admin_password = os.getenv("THREATLENS_ADMIN_PASSWORD")
     if bool(admin_username) != bool(admin_password):
@@ -66,6 +72,7 @@ def create_app(repository: ThreatRepository | None = None) -> FastAPI:
     application.state.session_lifetime = timedelta(hours=session_hours)
     application.state.secure_cookies = secure_cookies
     application.state.csrf_cookie_name = CSRF_COOKIE_NAME
+    application.state.detection_settings = settings
     login_failures: dict[str, deque[float]] = defaultdict(deque)
     application.include_router(router)
     application.mount(
