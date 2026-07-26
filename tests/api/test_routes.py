@@ -23,6 +23,9 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
             },
         )
         assert response.status_code == 200
+        test_client.headers["X-CSRF-Token"] = test_client.cookies[
+            "threatlens_csrf"
+        ]
         yield test_client
 
 

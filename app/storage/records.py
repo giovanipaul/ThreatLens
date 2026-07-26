@@ -73,3 +73,20 @@ class SessionRecord(Base):
     )
     created_at: Mapped[datetime] = mapped_column(UTCDateTime())
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+
+
+class AuditRecord(Base):
+    __tablename__ = "audit_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    occurred_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    actor_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    action: Mapped[str] = mapped_column(String(80), index=True)
+    target_type: Mapped[str] = mapped_column(String(40))
+    target_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source_ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    details: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)

@@ -12,6 +12,7 @@ SCRYPT_P = 1
 SCRYPT_KEY_LENGTH = 32
 SALT_LENGTH = 16
 SESSION_TOKEN_BYTES = 32
+CSRF_TOKEN_BYTES = 32
 
 
 class UserRole(StrEnum):
@@ -24,6 +25,27 @@ class AuthenticatedUser:
     id: int
     username: str
     role: UserRole
+
+
+@dataclass(frozen=True)
+class UserAccount:
+    id: int
+    username: str
+    role: UserRole
+    active: bool
+    created_at: datetime
+
+
+@dataclass(frozen=True)
+class AuditEntry:
+    id: int
+    occurred_at: datetime
+    actor_id: int | None
+    action: str
+    target_type: str
+    target_id: str | None
+    source_ip: str | None
+    details: dict[str, object]
 
 
 def hash_password(password: str) -> str:
@@ -78,6 +100,10 @@ def verify_password(password: str, encoded_hash: str) -> bool:
 
 def new_session_token() -> str:
     return secrets.token_urlsafe(SESSION_TOKEN_BYTES)
+
+
+def new_csrf_token() -> str:
+    return secrets.token_urlsafe(CSRF_TOKEN_BYTES)
 
 
 def session_token_digest(token: str) -> str:

@@ -34,13 +34,18 @@ the public internet or treated as a replacement for a production SIEM.
 - HttpOnly, SameSite Strict session cookies with optional HTTPS-only transport
 - Administrator-only log imports and alert workflow changes
 - Idempotent bootstrap administrator creation from environment variables
+- Double-submit CSRF validation for state-changing API requests
+- Five-attempt login throttling per source address over five minutes
+- Password rotation with automatic session revocation
+- Persistent audit records for authentication and privileged actions
 
 ## Known Limitations
 
 - No TLS termination within the application
 - SQLite data is not encrypted at rest
 - No malware scanning for uploaded files
-- No rate limiting or per-user quotas
+- No general API rate limiting or per-user quotas
+- Login throttling is process-local rather than shared across workers
 - No immutable analyst audit log
 - No administrator UI or API for provisioning and deactivating users
 - Detection is rule-based and limited to the supported OpenSSH formats
@@ -55,7 +60,7 @@ If ThreatLens is extended beyond local demonstrations:
 - Use a unique bootstrap password of at least 12 characters, then protect the
   environment variables as secrets.
 - Store data in an encrypted, access-controlled database.
-- Add rate limiting, audit logging, and retention policies.
+- Add shared edge rate limiting and an audit-log retention policy.
 - Run the container as a non-root user with a read-only filesystem where possible.
 - Review dependencies and container images regularly.
 - Never upload logs containing sensitive data without authorization.

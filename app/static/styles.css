@@ -107,6 +107,50 @@ select {
     margin: 0;
 }
 
+.account-link {
+    color: var(--cyan);
+}
+
+.account-page {
+    width: min(72rem, calc(100% - 2rem));
+}
+
+.account-section h1 {
+    margin-bottom: 1rem;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+}
+
+.settings-form {
+    display: grid;
+    max-width: 32rem;
+    gap: 1rem;
+    margin-top: 1.25rem;
+}
+
+.settings-form label {
+    display: grid;
+    gap: 0.4rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.inline-settings {
+    max-width: none;
+    grid-template-columns: 1fr 1fr 0.6fr auto;
+    align-items: end;
+}
+
+.account-section .table-action + .table-action {
+    margin-left: 0.4rem;
+}
+
+@media (max-width: 760px) {
+    .inline-settings {
+        grid-template-columns: 1fr;
+    }
+}
+
 .logout-button {
     min-height: auto;
     padding: 0.45rem 0.7rem;

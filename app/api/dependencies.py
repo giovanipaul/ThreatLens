@@ -1,3 +1,4 @@
+import hmac
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
@@ -33,3 +34,17 @@ def require_admin(
             detail="Administrator access required.",
         )
     return user
+
+
+def require_csrf(request: Request) -> None:
+    cookie_token = request.cookies.get(request.app.state.csrf_cookie_name)
+    header_token = request.headers.get("X-CSRF-Token")
+    if (
+        not cookie_token
+        or not header_token
+        or not hmac.compare_digest(cookie_token, header_token)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="CSRF validation failed.",
+        )

@@ -6,7 +6,9 @@ from sqlalchemy import Engine, delete, or_, select
 from sqlalchemy.orm import sessionmaker
 
 from app.auth import (
+    AuditEntry,
     AuthenticatedUser,
+    UserAccount,
     UserRole,
     hash_password,
     new_session_token,
@@ -26,6 +28,7 @@ from app.storage.database import Base, create_database_engine, create_session_fa
 from app.storage.records import (
     AlertRecord,
     AlertStateRecord,
+    AuditRecord,
     EventRecord,
     SessionRecord,
     UserRecord,
@@ -141,6 +144,108 @@ class ThreatRepository:
                     SessionRecord.token_digest == session_token_digest(token)
                 )
             )
+
+    def change_password(
+        self,
+        user_id: int,
+        current_password: str,
+        new_password: str,
+    ) -> bool:
+        new_hash = hash_password(new_password)
+        with self.sessions.begin() as session:
+            record = session.get(UserRecord, user_id)
+            if record is None or not verify_password(
+                current_password,
+                record.password_hash,
+            ):
+                return False
+            record.password_hash = new_hash
+            session.execute(
+                delete(SessionRecord).where(SessionRecord.user_id == user_id)
+            )
+            return True
+
+    def list_users(self) -> list[UserAccount]:
+        with self.sessions() as session:
+            records = session.scalars(
+                select(UserRecord).order_by(UserRecord.username)
+            ).all()
+            return [self._record_to_account(record) for record in records]
+
+    def update_user(
+        self,
+        user_id: int,
+        *,
+        role: UserRole | None = None,
+        active: bool | None = None,
+    ) -> UserAccount | None:
+        with self.sessions.begin() as session:
+            record = session.get(UserRecord, user_id)
+            if record is None:
+                return None
+            if role is not None:
+                record.role = role.value
+            if active is not None:
+                record.active = active
+                if not active:
+                    session.execute(
+                        delete(SessionRecord).where(SessionRecord.user_id == user_id)
+                    )
+            return self._record_to_account(record)
+
+    def revoke_user_sessions(self, user_id: int) -> bool:
+        with self.sessions.begin() as session:
+            if session.get(UserRecord, user_id) is None:
+                return False
+            session.execute(
+                delete(SessionRecord).where(SessionRecord.user_id == user_id)
+            )
+            return True
+
+    def record_audit(
+        self,
+        action: str,
+        *,
+        actor_id: int | None = None,
+        target_type: str,
+        target_id: str | None = None,
+        source_ip: str | None = None,
+        details: dict[str, object] | None = None,
+    ) -> None:
+        with self.sessions.begin() as session:
+            session.add(
+                AuditRecord(
+                    occurred_at=utc_now(),
+                    actor_id=actor_id,
+                    action=action,
+                    target_type=target_type,
+                    target_id=target_id,
+                    source_ip=source_ip,
+                    details=details or {},
+                )
+            )
+
+    def list_audit_entries(self, limit: int = 100) -> list[AuditEntry]:
+        self._validate_limit(limit)
+        with self.sessions() as session:
+            records = session.scalars(
+                select(AuditRecord)
+                .order_by(AuditRecord.occurred_at.desc())
+                .limit(limit)
+            ).all()
+            return [
+                AuditEntry(
+                    id=record.id,
+                    occurred_at=record.occurred_at,
+                    actor_id=record.actor_id,
+                    action=record.action,
+                    target_type=record.target_type,
+                    target_id=record.target_id,
+                    source_ip=record.source_ip,
+                    details=record.details,
+                )
+                for record in records
+            ]
 
     def save_events(self, events: Iterable[SecurityEvent]) -> int:
         records = [self._event_to_record(event) for event in events]
@@ -289,6 +394,16 @@ class ThreatRepository:
             id=record.id,
             username=record.username,
             role=UserRole(record.role),
+        )
+
+    @staticmethod
+    def _record_to_account(record: UserRecord) -> UserAccount:
+        return UserAccount(
+            id=record.id,
+            username=record.username,
+            role=UserRole(record.role),
+            active=record.active,
+            created_at=record.created_at,
         )
 
     @staticmethod

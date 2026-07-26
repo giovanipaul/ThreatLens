@@ -4,9 +4,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 from pydantic import IPvAnyAddress
+from sqlalchemy.exc import IntegrityError
 
-from app.api.dependencies import get_current_user, get_repository, require_admin
-from app.auth import AuthenticatedUser
+from app.api.dependencies import (
+    get_current_user,
+    get_repository,
+    require_admin,
+    require_csrf,
+)
+from app.auth import AuthenticatedUser, UserRole
 from app.detection import (
     BruteForceDetector,
     PasswordSprayDetector,
@@ -19,7 +25,16 @@ from app.models.security_alert import (
 )
 from app.models.security_event import AuthenticationResult, SecurityEvent
 from app.parsers import LinuxAuthLogParser
-from app.schemas import AlertStatusResponse, AlertStatusUpdate, ImportSummary
+from app.schemas import (
+    AlertStatusResponse,
+    AlertStatusUpdate,
+    AuditResponse,
+    ImportSummary,
+    PasswordChange,
+    UserCreate,
+    UserResponse,
+    UserUpdate,
+)
 from app.services import alerts_to_csv, events_to_csv, models_to_json
 from app.storage import ThreatRepository
 
@@ -28,6 +43,7 @@ router = APIRouter(prefix="/api")
 RepositoryDependency = Annotated[ThreatRepository, Depends(get_repository)]
 UserDependency = Annotated[AuthenticatedUser, Depends(get_current_user)]
 AdminDependency = Annotated[AuthenticatedUser, Depends(require_admin)]
+CsrfDependency = Annotated[None, Depends(require_csrf)]
 MAX_UPLOAD_BYTES = 2 * 1024 * 1024
 MAX_LOG_LINES = 50_000
 ALLOWED_LOG_EXTENSIONS = {".log", ".txt"}
@@ -41,6 +57,7 @@ ALLOWED_LOG_EXTENSIONS = {".log", ".txt"}
 async def import_log(
     repository: RepositoryDependency,
     admin: AdminDependency,
+    csrf: CsrfDependency,
     file: Annotated[UploadFile, File(description="UTF-8 Linux authentication log")],
     year: Annotated[int | None, Query(ge=1970, le=9999)] = None,
 ) -> ImportSummary:
@@ -79,7 +96,7 @@ async def import_log(
         *SuspiciousSuccessDetector().detect(events),
     ]
 
-    return ImportSummary(
+    summary = ImportSummary(
         filename=file.filename or "uploaded.log",
         lines_received=len(lines),
         events_parsed=len(events),
@@ -87,6 +104,14 @@ async def import_log(
         alerts_generated=len(alerts),
         alerts_saved=repository.save_alerts(alerts),
     )
+    repository.record_audit(
+        "log.imported",
+        actor_id=admin.id,
+        target_type="log",
+        target_id=file.filename,
+        details={"events_saved": summary.events_saved},
+    )
+    return summary
 
 
 @router.get("/events", response_model=list[SecurityEvent])
@@ -128,13 +153,148 @@ def update_alert_status(
     update: AlertStatusUpdate,
     repository: RepositoryDependency,
     admin: AdminDependency,
+    csrf: CsrfDependency,
 ) -> AlertStatusResponse:
     if not repository.set_alert_status(alert_id, update.status):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Alert not found.",
         )
+    repository.record_audit(
+        "alert.status_changed",
+        actor_id=admin.id,
+        target_type="alert",
+        target_id=str(alert_id),
+        details={"status": update.status.value},
+    )
     return AlertStatusResponse(id=alert_id, status=update.status)
+
+
+@router.post("/account/password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    update: PasswordChange,
+    repository: RepositoryDependency,
+    user: UserDependency,
+    csrf: CsrfDependency,
+) -> Response:
+    if not repository.change_password(
+        user.id,
+        update.current_password,
+        update.new_password,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect.",
+        )
+    repository.record_audit(
+        "account.password_changed",
+        actor_id=user.id,
+        target_type="user",
+        target_id=str(user.id),
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/admin/users", response_model=list[UserResponse])
+def list_users(
+    repository: RepositoryDependency,
+    admin: AdminDependency,
+) -> list[UserResponse]:
+    return [UserResponse(**vars(user)) for user in repository.list_users()]
+
+
+@router.post(
+    "/admin/users",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_user(
+    create: UserCreate,
+    repository: RepositoryDependency,
+    admin: AdminDependency,
+    csrf: CsrfDependency,
+) -> UserResponse:
+    try:
+        user = repository.create_user(create.username, create.password, create.role)
+    except (IntegrityError, ValueError) as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username already exists or is invalid.",
+        ) from error
+    repository.record_audit(
+        "user.created",
+        actor_id=admin.id,
+        target_type="user",
+        target_id=str(user.id),
+        details={"role": user.role.value},
+    )
+    account = next(item for item in repository.list_users() if item.id == user.id)
+    return UserResponse(**vars(account))
+
+
+@router.patch("/admin/users/{user_id}", response_model=UserResponse)
+def update_user(
+    user_id: int,
+    update: UserUpdate,
+    repository: RepositoryDependency,
+    admin: AdminDependency,
+    csrf: CsrfDependency,
+) -> UserResponse:
+    if user_id == admin.id and (
+        update.active is False or update.role == UserRole.ANALYST
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Administrators cannot remove their own access.",
+        )
+    account = repository.update_user(
+        user_id,
+        role=update.role,
+        active=update.active,
+    )
+    if account is None:
+        raise HTTPException(status_code=404, detail="User not found.")
+    repository.record_audit(
+        "user.updated",
+        actor_id=admin.id,
+        target_type="user",
+        target_id=str(user_id),
+        details=update.model_dump(exclude_none=True, mode="json"),
+    )
+    return UserResponse(**vars(account))
+
+
+@router.post(
+    "/admin/users/{user_id}/revoke-sessions",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def revoke_sessions(
+    user_id: int,
+    repository: RepositoryDependency,
+    admin: AdminDependency,
+    csrf: CsrfDependency,
+) -> Response:
+    if not repository.revoke_user_sessions(user_id):
+        raise HTTPException(status_code=404, detail="User not found.")
+    repository.record_audit(
+        "user.sessions_revoked",
+        actor_id=admin.id,
+        target_type="user",
+        target_id=str(user_id),
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/admin/audit", response_model=list[AuditResponse])
+def list_audit(
+    repository: RepositoryDependency,
+    admin: AdminDependency,
+    limit: Annotated[int, Query(ge=1, le=1000)] = 100,
+) -> list[AuditResponse]:
+    return [
+        AuditResponse(**vars(entry))
+        for entry in repository.list_audit_entries(limit)
+    ]
 
 
 @router.get("/reports/events.csv")

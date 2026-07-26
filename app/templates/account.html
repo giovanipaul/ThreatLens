@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Account | ThreatLens</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+    <script src="{{ url_for('static', path='/account.js') }}" defer></script>
+</head>
+<body data-role="{{ user.role.value }}">
+<header class="site-header">
+    <a class="brand" href="/"><span class="brand-mark">TL</span><strong>ThreatLens</strong></a>
+    <div class="account-controls">
+        <span>{{ user.username }} · {{ user.role.value }}</span>
+        <a class="account-link" href="/">Dashboard</a>
+        <form method="post" action="/logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="logout-button" type="submit">Sign out</button>
+        </form>
+    </div>
+</header>
+<main class="account-page">
+    <section class="data-section account-section">
+        <p class="eyebrow">Account security</p>
+        <h1>Change password</h1>
+        <form id="password-form" class="settings-form">
+            <label>Current password<input name="current_password" type="password" required></label>
+            <label>New password<input name="new_password" type="password" minlength="12" required></label>
+            <button type="submit">Change password</button>
+            <p id="password-message" class="form-message" role="status"></p>
+        </form>
+    </section>
+    {% if user.role.value == "admin" %}
+    <section class="data-section account-section">
+        <p class="eyebrow">Administration</p>
+        <h2>User accounts</h2>
+        <form id="user-form" class="settings-form inline-settings">
+            <label>Username<input name="username" required></label>
+            <label>Temporary password<input name="password" type="password" minlength="12" required></label>
+            <label>Role<select name="role"><option value="analyst">Analyst</option><option value="admin">Admin</option></select></label>
+            <button type="submit">Create user</button>
+        </form>
+        <p id="user-message" class="form-message" role="status"></p>
+        <div class="table-shell"><table>
+            <thead><tr><th>Username</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="users-table"></tbody>
+        </table></div>
+    </section>
+    {% endif %}
+</main>
+</body>
+</html>

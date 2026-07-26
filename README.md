@@ -37,6 +37,9 @@ interface for reviewing and managing findings.
 - Provides an accessible, responsive analyst dashboard and OpenAPI documentation
 - Authenticates users with salted scrypt password hashes and database-backed sessions
 - Enforces analyst read access and administrator-only import/workflow mutations
+- Supports password rotation, administrator-managed accounts, and session revocation
+- Protects mutations with CSRF tokens and throttles repeated login failures
+- Audits authentication, account administration, imports, and alert actions
 - Runs locally or in Docker with persistent storage
 - Validates every push with Ruff, Pytest, and a Docker build in GitHub Actions
 
@@ -150,6 +153,10 @@ variables later does not overwrite its stored password.
 For HTTPS deployments, set `THREATLENS_SECURE_COOKIES=true`. Session lifetime
 defaults to 12 hours and can be set to a positive number of hours with
 `THREATLENS_SESSION_HOURS`.
+
+The **Account** page lets users change their own password and lets administrators
+create, enable, disable, and assign roles to accounts or revoke their sessions.
+Administrator audit data is available from `GET /api/admin/audit`.
 
 ## Project Structure
 

@@ -23,6 +23,10 @@ const elements = {
     eventsJson: document.querySelector("#events-json"),
 };
 const isAdmin = document.body.dataset.role === "admin";
+const csrfToken = document.cookie
+    .split("; ")
+    .find((item) => item.startsWith("threatlens_csrf="))
+    ?.split("=")[1] || "";
 
 function createCell(value, className = "") {
     const cell = document.createElement("td");
@@ -45,6 +49,9 @@ function formatTimestamp(value) {
 }
 
 async function fetchJson(url, options = {}) {
+    if (options.method && options.method !== "GET") {
+        options.headers = {...options.headers, "X-CSRF-Token": csrfToken};
+    }
     const response = await fetch(url, options);
     if (!response.ok) {
         let message = `Request failed with status ${response.status}.`;

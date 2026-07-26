@@ -19,7 +19,9 @@
     </a>
     <div class="account-controls">
         <span>{{ user.username }} · {{ user.role.value }}</span>
+        <a class="account-link" href="/account">Account</a>
         <form method="post" action="/logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button class="logout-button" type="submit">Sign out</button>
         </form>
     </div>
