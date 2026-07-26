@@ -26,6 +26,7 @@ from app.models.security_alert import (
 from app.models.security_event import AuthenticationResult, SecurityEvent
 from app.parsers import LinuxAuthLogParser
 from app.schemas import (
+    AlertHistoryResponse,
     AlertStatusResponse,
     AlertStatusUpdate,
     AuditResponse,
@@ -152,22 +153,45 @@ def update_alert_status(
     alert_id: int,
     update: AlertStatusUpdate,
     repository: RepositoryDependency,
-    admin: AdminDependency,
+    user: UserDependency,
     csrf: CsrfDependency,
 ) -> AlertStatusResponse:
-    if not repository.set_alert_status(alert_id, update.status):
+    if not repository.set_alert_status(
+        alert_id,
+        update.status,
+        actor=user,
+        note=update.note,
+    ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Alert not found.",
         )
     repository.record_audit(
         "alert.status_changed",
-        actor_id=admin.id,
+        actor_id=user.id,
         target_type="alert",
         target_id=str(alert_id),
-        details={"status": update.status.value},
+        details={"status": update.status.value, "note_provided": bool(update.note)},
     )
     return AlertStatusResponse(id=alert_id, status=update.status)
+
+
+@router.get(
+    "/alerts/{alert_id}/history",
+    response_model=list[AlertHistoryResponse],
+)
+def list_alert_history(
+    alert_id: int,
+    repository: RepositoryDependency,
+    user: UserDependency,
+) -> list[AlertHistoryResponse]:
+    history = repository.list_alert_history(alert_id)
+    if history is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alert not found.",
+        )
+    return [AlertHistoryResponse(**vars(entry)) for entry in history]
 
 
 @router.post("/account/password", status_code=status.HTTP_204_NO_CONTENT)

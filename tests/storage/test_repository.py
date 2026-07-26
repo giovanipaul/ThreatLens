@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from app.auth import UserRole
 from app.detection import BruteForceDetector
 from app.models.security_alert import AlertSeverity, AlertStatus
 from app.models.security_event import AuthenticationResult, SecurityEvent
@@ -113,6 +114,49 @@ def test_manages_alert_lifecycle(repository: ThreatRepository) -> None:
     )
     assert repository.list_managed_alerts(status=AlertStatus.OPEN) == []
     assert len(repository.list_managed_alerts(status=AlertStatus.RESOLVED)) == 1
+
+
+def test_appends_immutable_alert_history(repository: ThreatRepository) -> None:
+    actor = repository.create_user(
+        "analyst",
+        "analyst secure password",
+        UserRole.ANALYST,
+    )
+    repository.save_alerts(
+        BruteForceDetector().detect([make_event(minute) for minute in range(5)])
+    )
+    alert_id = repository.list_managed_alerts()[0].id
+
+    assert repository.set_alert_status(
+        alert_id,
+        AlertStatus.ACKNOWLEDGED,
+        actor=actor,
+        note="Investigating source activity.",
+    )
+    assert repository.set_alert_status(
+        alert_id,
+        AlertStatus.RESOLVED,
+        actor=actor,
+        note="Blocked source at the firewall.",
+    )
+
+    history = repository.list_alert_history(alert_id)
+    assert history is not None
+    assert len(history) == 2
+    assert history[0].previous_status == "open"
+    assert history[0].new_status == "acknowledged"
+    assert history[0].actor_username == "analyst"
+    assert history[0].note == "Investigating source activity."
+    assert history[1].previous_status == "acknowledged"
+    assert history[1].new_status == "resolved"
+    assert history[1].note == "Blocked source at the firewall."
+    assert history[0].occurred_at.tzinfo == UTC
+
+
+def test_returns_none_for_missing_alert_history(
+    repository: ThreatRepository,
+) -> None:
+    assert repository.list_alert_history(999) is None
 
 
 def test_rejects_status_update_for_missing_alert(

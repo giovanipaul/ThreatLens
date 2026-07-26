@@ -22,7 +22,6 @@ const elements = {
     eventsCsv: document.querySelector("#events-csv"),
     eventsJson: document.querySelector("#events-json"),
 };
-const isAdmin = document.body.dataset.role === "admin";
 const csrfToken = document.cookie
     .split("; ")
     .find((item) => item.startsWith("threatlens_csrf="))
@@ -106,11 +105,9 @@ function renderAlerts(alerts) {
 
 function createAlertActionCell(alert) {
     const cell = document.createElement("td");
-    if (!isAdmin) {
-        cell.textContent = "View only";
-        return cell;
-    }
     const button = document.createElement("button");
+    const historyButton = document.createElement("button");
+    const historyList = document.createElement("div");
     const nextState = {
         open: "acknowledged",
         acknowledged: "resolved",
@@ -126,12 +123,19 @@ function createAlertActionCell(alert) {
     button.className = "table-action";
     button.textContent = label;
     button.addEventListener("click", async () => {
+        const note = window.prompt(
+            `Optional investigation note for ${label.toLowerCase()}:`,
+            "",
+        );
+        if (note === null) {
+            return;
+        }
         button.disabled = true;
         try {
             await fetchJson(`/api/alerts/${alert.id}/status`, {
                 method: "PATCH",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({status: nextState}),
+                body: JSON.stringify({status: nextState, note: note || null}),
             });
             await refreshDashboard();
         } catch (error) {
@@ -139,7 +143,36 @@ function createAlertActionCell(alert) {
             button.disabled = false;
         }
     });
-    cell.append(button);
+    historyButton.type = "button";
+    historyButton.className = "table-action";
+    historyButton.textContent = "History";
+    historyList.className = "alert-history";
+    historyButton.addEventListener("click", async () => {
+        historyButton.disabled = true;
+        try {
+            const history = await fetchJson(`/api/alerts/${alert.id}/history`);
+            historyList.replaceChildren();
+            if (!history.length) {
+                historyList.textContent = "No investigation history yet.";
+            }
+            for (const entry of history) {
+                const item = document.createElement("p");
+                const transition =
+                    `${entry.previous_status} → ${entry.new_status}`;
+                item.textContent =
+                    `${formatTimestamp(entry.occurred_at)} · ` +
+                    `${entry.actor_username} · ${transition}` +
+                    `${entry.note ? ` · ${entry.note}` : ""}`;
+                historyList.append(item);
+            }
+            historyList.hidden = false;
+        } catch (error) {
+            elements.uploadMessage.textContent = error.message;
+        } finally {
+            historyButton.disabled = false;
+        }
+    });
+    cell.append(button, historyButton, historyList);
     return cell;
 }
 

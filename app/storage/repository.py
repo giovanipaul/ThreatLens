@@ -6,6 +6,7 @@ from sqlalchemy import Engine, delete, or_, select
 from sqlalchemy.orm import sessionmaker
 
 from app.auth import (
+    AlertHistoryEntry,
     AuditEntry,
     AuthenticatedUser,
     UserAccount,
@@ -26,6 +27,7 @@ from app.models.security_alert import (
 from app.models.security_event import AuthenticationResult, SecurityEvent
 from app.storage.database import Base, create_database_engine, create_session_factory
 from app.storage.records import (
+    AlertHistoryRecord,
     AlertRecord,
     AlertStateRecord,
     AuditRecord,
@@ -355,7 +357,14 @@ class ThreatRepository:
                 for record, stored_status in rows
             ]
 
-    def set_alert_status(self, alert_id: int, status: AlertStatus) -> bool:
+    def set_alert_status(
+        self,
+        alert_id: int,
+        status: AlertStatus,
+        *,
+        actor: AuthenticatedUser | None = None,
+        note: str | None = None,
+    ) -> bool:
         with self.sessions.begin() as session:
             if session.get(AlertRecord, alert_id) is None:
                 return False
@@ -364,6 +373,9 @@ class ThreatRepository:
                 select(AlertStateRecord).where(
                     AlertStateRecord.alert_id == alert_id
                 )
+            )
+            previous_status = AlertStatus(
+                state.status if state is not None else AlertStatus.OPEN.value
             )
             if state is None:
                 session.add(
@@ -374,7 +386,42 @@ class ThreatRepository:
                 )
             else:
                 state.status = status.value
+            if actor is not None:
+                session.add(
+                    AlertHistoryRecord(
+                        alert_id=alert_id,
+                        actor_id=actor.id,
+                        actor_username=actor.username,
+                        previous_status=previous_status.value,
+                        new_status=status.value,
+                        note=note.strip() if note and note.strip() else None,
+                        occurred_at=utc_now(),
+                    )
+                )
             return True
+
+    def list_alert_history(self, alert_id: int) -> list[AlertHistoryEntry] | None:
+        with self.sessions() as session:
+            if session.get(AlertRecord, alert_id) is None:
+                return None
+            records = session.scalars(
+                select(AlertHistoryRecord)
+                .where(AlertHistoryRecord.alert_id == alert_id)
+                .order_by(AlertHistoryRecord.occurred_at, AlertHistoryRecord.id)
+            ).all()
+            return [
+                AlertHistoryEntry(
+                    id=record.id,
+                    alert_id=record.alert_id,
+                    actor_id=record.actor_id,
+                    actor_username=record.actor_username,
+                    previous_status=record.previous_status,
+                    new_status=record.new_status,
+                    note=record.note,
+                    occurred_at=record.occurred_at,
+                )
+                for record in records
+            ]
 
     @staticmethod
     def _validate_limit(limit: int) -> None:

@@ -1,6 +1,10 @@
 """API request and response schemas."""
 
-from app.schemas.alerts import AlertStatusResponse, AlertStatusUpdate
+from app.schemas.alerts import (
+    AlertHistoryResponse,
+    AlertStatusResponse,
+    AlertStatusUpdate,
+)
 from app.schemas.auth import (
     AuditResponse,
     PasswordChange,
@@ -11,6 +15,7 @@ from app.schemas.auth import (
 from app.schemas.imports import ImportSummary
 
 __all__ = [
+    "AlertHistoryResponse",
     "AlertStatusResponse",
     "AlertStatusUpdate",
     "AuditResponse",

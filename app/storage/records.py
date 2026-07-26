@@ -51,6 +51,25 @@ class AlertStateRecord(Base):
     status: Mapped[str] = mapped_column(String(20), index=True)
 
 
+class AlertHistoryRecord(Base):
+    __tablename__ = "alert_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    alert_id: Mapped[int] = mapped_column(
+        ForeignKey("security_alerts.id", ondelete="RESTRICT"),
+        index=True,
+    )
+    actor_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        index=True,
+    )
+    actor_username: Mapped[str] = mapped_column(String(255))
+    previous_status: Mapped[str] = mapped_column(String(20))
+    new_status: Mapped[str] = mapped_column(String(20))
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+
+
 class UserRecord(Base):
     __tablename__ = "users"
 

@@ -40,6 +40,7 @@ interface for reviewing and managing findings.
 - Supports password rotation, administrator-managed accounts, and session revocation
 - Protects mutations with CSRF tokens and throttles repeated login failures
 - Audits authentication, account administration, imports, and alert actions
+- Preserves append-only alert investigation history with analyst notes and transitions
 - Runs locally or in Docker with persistent storage
 - Validates every push with Ruff, Pytest, and a Docker build in GitHub Actions
 
@@ -137,6 +138,7 @@ Importing the same file again does not duplicate stored events or alerts.
 | `GET` | `/api/events` | Filter stored events by result or source IP |
 | `GET` | `/api/alerts` | Filter alerts by severity or analyst status |
 | `PATCH` | `/api/alerts/{id}/status` | Acknowledge, resolve, or reopen an alert |
+| `GET` | `/api/alerts/{id}/history` | Review immutable analyst investigation history |
 | `GET` | `/api/reports/events.csv` | Download filtered events as CSV |
 | `GET` | `/api/reports/events.json` | Download filtered events as JSON |
 | `GET` | `/api/reports/alerts.csv` | Download filtered alerts as CSV |
@@ -153,6 +155,11 @@ variables later does not overwrite its stored password.
 For HTTPS deployments, set `THREATLENS_SECURE_COOKIES=true`. Session lifetime
 defaults to 12 hours and can be set to a positive number of hours with
 `THREATLENS_SESSION_HOURS`.
+
+Analysts and administrators can acknowledge, resolve, or reopen alerts with an
+optional investigation note. ThreatLens preserves the analyst identity,
+timestamp, previous state, and new state and displays the complete history from
+the dashboard.
 
 The **Account** page lets users change their own password and lets administrators
 create, enable, disable, and assign roles to accounts or revoke their sessions.

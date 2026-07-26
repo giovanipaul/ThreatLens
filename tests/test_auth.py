@@ -149,12 +149,18 @@ def test_api_authentication_and_role_authorization(
             "/api/logs/import",
             files={"file": ("auth.log", "", "text/plain")},
         )
+        analyst_workflow = client.patch(
+            "/api/alerts/999/status",
+            headers={"X-CSRF-Token": client.cookies["threatlens_csrf"]},
+            json={"status": "acknowledged", "note": "Reviewing alert."},
+        )
 
         assert unauthenticated.status_code == 401
         assert unauthenticated.json()["detail"] == "Authentication required."
         assert readable.status_code == 200
         assert forbidden.status_code == 403
         assert forbidden.json()["detail"] == "Administrator access required."
+        assert analyst_workflow.status_code == 404
         dashboard = client.get("/")
         assert 'data-role="analyst"' in dashboard.text
         assert 'id="upload-form" class="upload-panel" hidden' in dashboard.text

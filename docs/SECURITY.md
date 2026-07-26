@@ -38,6 +38,7 @@ the public internet or treated as a replacement for a production SIEM.
 - Five-attempt login throttling per source address over five minutes
 - Password rotation with automatic session revocation
 - Persistent audit records for authentication and privileged actions
+- Append-only per-alert history with actor identity, state transition, and notes
 
 ## Known Limitations
 

@@ -48,6 +48,18 @@ class AuditEntry:
     details: dict[str, object]
 
 
+@dataclass(frozen=True)
+class AlertHistoryEntry:
+    id: int
+    alert_id: int
+    actor_id: int
+    actor_username: str
+    previous_status: str
+    new_status: str
+    note: str | None
+    occurred_at: datetime
+
+
 def hash_password(password: str) -> str:
     if len(password) < 12:
         raise ValueError("Password must contain at least 12 characters.")

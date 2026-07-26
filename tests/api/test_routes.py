@@ -101,7 +101,10 @@ def test_updates_and_filters_alert_status(client: TestClient) -> None:
 
     update = client.patch(
         f"/api/alerts/{alert_id}/status",
-        json={"status": "acknowledged"},
+        json={
+            "status": "acknowledged",
+            "note": "Confirmed repeated authentication failures.",
+        },
     )
     acknowledged = client.get(
         "/api/alerts",
@@ -113,6 +116,14 @@ def test_updates_and_filters_alert_status(client: TestClient) -> None:
     assert update.json() == {"id": alert_id, "status": "acknowledged"}
     assert len(acknowledged.json()) == 1
     assert open_alerts.json() == []
+    history = client.get(f"/api/alerts/{alert_id}/history")
+    assert history.status_code == 200
+    assert history.json()[0]["previous_status"] == "open"
+    assert history.json()[0]["new_status"] == "acknowledged"
+    assert history.json()[0]["actor_username"] == "security-admin"
+    assert history.json()[0]["note"] == (
+        "Confirmed repeated authentication failures."
+    )
 
 
 def test_returns_not_found_for_missing_alert(client: TestClient) -> None:
@@ -123,6 +134,8 @@ def test_returns_not_found_for_missing_alert(client: TestClient) -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Alert not found."
+    history = client.get("/api/alerts/999/history")
+    assert history.status_code == 404
 
 
 def test_rejects_non_utf8_upload(client: TestClient) -> None:

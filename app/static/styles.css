@@ -145,6 +145,22 @@ select {
     margin-left: 0.4rem;
 }
 
+.alert-history {
+    min-width: 22rem;
+    margin-top: 0.6rem;
+    color: var(--muted);
+    white-space: normal;
+}
+
+.alert-history p {
+    margin: 0.35rem 0;
+    font-size: 0.75rem;
+}
+
+.table-action + .table-action {
+    margin-left: 0.4rem;
+}
+
 @media (max-width: 760px) {
     .inline-settings {
         grid-template-columns: 1fr;
