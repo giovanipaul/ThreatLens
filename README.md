@@ -41,6 +41,8 @@ interface for reviewing and managing findings.
 - Protects mutations with CSRF tokens and throttles repeated login failures
 - Audits authentication, account administration, imports, and alert actions
 - Preserves append-only alert investigation history with analyst notes and transitions
+- Emits structured JSON request and import logs with traceable request IDs
+- Exposes Prometheus metrics plus separate liveness and database-readiness probes
 - Runs locally or in Docker with persistent storage
 - Validates every push with Ruff, Pytest, and a Docker build in GitHub Actions
 
@@ -90,6 +92,7 @@ fails clearly when a value is malformed or outside its safe range.
 | `SUSPICIOUS_SUCCESS_WINDOW_SECONDS` | `600` | Suspicious-success correlation window |
 | `MAX_UPLOAD_MB` | `2` | Maximum uploaded log size |
 | `MAX_LOG_LINES` | `50000` | Maximum lines accepted per import |
+| `THREATLENS_LOG_LEVEL` | `INFO` | Structured application log verbosity |
 
 ## Quick Start
 
@@ -117,6 +120,8 @@ Open:
 - Dashboard: <http://127.0.0.1:8000/>
 - Interactive API documentation: <http://127.0.0.1:8000/docs>
 - Health check: <http://127.0.0.1:8000/health>
+- Database readiness: <http://127.0.0.1:8000/ready>
+- Prometheus metrics: <http://127.0.0.1:8000/metrics>
 
 ### Run with Docker
 
@@ -187,11 +192,13 @@ Importing the same file again does not duplicate stored events or alerts.
 | `GET` | `/api/reports/alerts.csv` | Download filtered alerts as CSV |
 | `GET` | `/api/reports/alerts.json` | Download filtered alerts as JSON |
 | `GET` | `/health` | Confirm that the service is running |
+| `GET` | `/ready` | Confirm that the service and database are ready |
+| `GET` | `/metrics` | Scrape Prometheus-compatible operational metrics |
 
 All dashboard and `/api` routes require a database-backed login session except
-the public health check and login page. Analyst accounts can view and export
-events and alerts. Administrators can additionally import logs and change alert
-status. The bootstrap administrator is created once from
+the public login, liveness, readiness, and metrics endpoints. Analyst accounts
+can view and export events and alerts. Administrators can additionally import
+logs and change alert status. The bootstrap administrator is created once from
 `THREATLENS_ADMIN_USERNAME` and `THREATLENS_ADMIN_PASSWORD`; changing those
 variables later does not overwrite its stored password.
 
@@ -207,6 +214,19 @@ the dashboard.
 The **Account** page lets users change their own password and lets administrators
 create, enable, disable, and assign roles to accounts or revoke their sessions.
 Administrator audit data is available from `GET /api/admin/audit`.
+
+## Observability
+
+ThreatLens emits application logs as newline-delimited JSON. Each request gets
+an `X-Request-ID` response header; a caller-supplied ID is preserved when it
+contains only letters, numbers, `.`, `_`, or `-` and is no longer than 128
+characters. Request logs include the route template, status, and duration
+without recording credentials, session tokens, request bodies, or query values.
+
+`/metrics` exposes low-cardinality HTTP request totals and latency histograms,
+plus import totals, duration, parsed and stored event counts, and generated and
+stored alert counts. `/health` is a process liveness probe, while `/ready`
+performs a database query. The Docker health check uses `/ready`.
 
 ## Project Structure
 

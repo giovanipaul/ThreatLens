@@ -1,8 +1,18 @@
+import time
 from datetime import timedelta
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import Response
 from pydantic import IPvAnyAddress
 from sqlalchemy.exc import IntegrityError
@@ -63,6 +73,7 @@ ALLOWED_LOG_EXTENSIONS = {".log", ".txt"}
     status_code=status.HTTP_201_CREATED,
 )
 async def import_log(
+    request: Request,
     repository: RepositoryDependency,
     settings: SettingsDependency,
     admin: AdminDependency,
@@ -70,6 +81,7 @@ async def import_log(
     file: Annotated[UploadFile, File(description="UTF-8 Linux authentication log")],
     year: Annotated[int | None, Query(ge=1970, le=9999)] = None,
 ) -> ImportSummary:
+    started_at = time.perf_counter()
     extension = Path(file.filename or "").suffix.lower()
     if extension not in ALLOWED_LOG_EXTENSIONS:
         raise HTTPException(
@@ -132,6 +144,26 @@ async def import_log(
         target_type="log",
         target_id=file.filename,
         details={"events_saved": summary.events_saved},
+    )
+    duration = time.perf_counter() - started_at
+    request.app.state.observability.record_import(
+        events_parsed=summary.events_parsed,
+        events_saved=summary.events_saved,
+        alerts_generated=summary.alerts_generated,
+        alerts_saved=summary.alerts_saved,
+        duration_seconds=duration,
+    )
+    request.app.state.logger.info(
+        "log.imported",
+        extra={
+            "request_id": request.state.request_id,
+            "log_filename": summary.filename,
+            "events_parsed": summary.events_parsed,
+            "events_saved": summary.events_saved,
+            "alerts_generated": summary.alerts_generated,
+            "alerts_saved": summary.alerts_saved,
+            "duration_ms": round(duration * 1000, 3),
+        },
     )
     return summary
 

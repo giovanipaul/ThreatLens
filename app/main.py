@@ -1,20 +1,28 @@
 import hmac
 import os
 import time
+import uuid
 from collections import defaultdict, deque
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Form, Request, Response, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.routes import router
 from app.auth import new_csrf_token
 from app.config import DetectionSettings
+from app.observability import (
+    REQUEST_ID_HEADER,
+    REQUEST_ID_PATTERN,
+    Observability,
+    create_logger,
+)
 from app.storage import ThreatRepository
 
 APP_DIRECTORY = Path(__file__).parent
@@ -47,6 +55,8 @@ def create_app(
         "true",
         "yes",
     }
+    logger = create_logger(os.getenv("THREATLENS_LOG_LEVEL", "INFO"))
+    observability = Observability()
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -73,6 +83,8 @@ def create_app(
     application.state.secure_cookies = secure_cookies
     application.state.csrf_cookie_name = CSRF_COOKIE_NAME
     application.state.detection_settings = settings
+    application.state.logger = logger
+    application.state.observability = observability
     login_failures: dict[str, deque[float]] = defaultdict(deque)
     application.include_router(router)
     application.mount(
@@ -81,6 +93,66 @@ def create_app(
         name="static",
     )
     templates = Jinja2Templates(directory=APP_DIRECTORY / "templates")
+
+    @application.middleware("http")
+    async def observe_request(request: Request, call_next) -> Response:
+        supplied_request_id = request.headers.get(REQUEST_ID_HEADER, "")
+        request_id = (
+            supplied_request_id
+            if REQUEST_ID_PATTERN.fullmatch(supplied_request_id)
+            else str(uuid.uuid4())
+        )
+        request.state.request_id = request_id
+        started_at = time.perf_counter()
+        try:
+            response = await call_next(request)
+        except Exception:
+            duration = time.perf_counter() - started_at
+            route = _route_name(request)
+            observability.record_request(
+                method=request.method,
+                route=route,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                duration_seconds=duration,
+            )
+            if request.url.path == "/api/logs/import":
+                observability.record_import_failure(duration)
+            logger.exception(
+                "request.failed",
+                extra=_request_log_fields(
+                    request,
+                    route,
+                    request_id,
+                    status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    duration,
+                ),
+            )
+            raise
+        duration = time.perf_counter() - started_at
+        route = _route_name(request)
+        observability.record_request(
+            method=request.method,
+            route=route,
+            status_code=response.status_code,
+            duration_seconds=duration,
+        )
+        if (
+            request.url.path == "/api/logs/import"
+            and response.status_code >= status.HTTP_400_BAD_REQUEST
+        ):
+            observability.record_import_failure(duration)
+        response.headers[REQUEST_ID_HEADER] = request_id
+        logger.info(
+            "request.completed",
+            extra=_request_log_fields(
+                request,
+                route,
+                request_id,
+                response.status_code,
+                duration,
+            ),
+        )
+        return response
 
     @application.get("/", response_class=HTMLResponse)
     def dashboard(request: Request) -> HTMLResponse:
@@ -223,6 +295,23 @@ def create_app(
         """Return a simple response used to verify that the API is running."""
         return {"status": "ok", "service": "ThreatLens"}
 
+    @application.get("/ready")
+    def readiness_check() -> JSONResponse:
+        try:
+            threat_repository.check_connection()
+        except SQLAlchemyError:
+            logger.exception("readiness.failed")
+            return JSONResponse(
+                {"status": "unavailable", "service": "ThreatLens"},
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return JSONResponse({"status": "ready", "service": "ThreatLens"})
+
+    @application.get("/metrics")
+    def metrics() -> Response:
+        content, content_type = observability.render()
+        return Response(content=content, headers={"Content-Type": content_type})
+
     return application
 
 
@@ -240,6 +329,27 @@ def _set_csrf_cookie(
         samesite="strict",
         path="/",
     )
+
+
+def _route_name(request: Request) -> str:
+    route = request.scope.get("route")
+    return getattr(route, "path", request.url.path)
+
+
+def _request_log_fields(
+    request: Request,
+    route: str,
+    request_id: str,
+    status_code: int,
+    duration_seconds: float,
+) -> dict[str, object]:
+    return {
+        "request_id": request_id,
+        "method": request.method,
+        "route": route,
+        "status": status_code,
+        "duration_ms": round(duration_seconds * 1000, 3),
+    }
 
 
 app = create_app()

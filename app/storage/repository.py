@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from datetime import timedelta
 from hashlib import sha256
 
-from sqlalchemy import Engine, delete, or_, select
+from sqlalchemy import Engine, delete, or_, select, text
 from sqlalchemy.orm import sessionmaker
 
 from app.auth import (
@@ -56,6 +56,11 @@ class ThreatRepository:
     def close(self) -> None:
         """Release pooled database connections held by the repository."""
         self.engine.dispose()
+
+    def check_connection(self) -> None:
+        """Raise when the configured database cannot serve a simple query."""
+        with self.engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
 
     def bootstrap_admin(self, username: str, password: str) -> None:
         normalized_username = self._normalize_username(username)
