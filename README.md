@@ -1,6 +1,7 @@
 # ThreatLens
 
 [![CI](https://github.com/giovanipaul/ThreatLens/actions/workflows/ci.yml/badge.svg)](https://github.com/giovanipaul/ThreatLens/actions/workflows/ci.yml)
+[![Security](https://github.com/giovanipaul/ThreatLens/actions/workflows/security.yml/badge.svg)](https://github.com/giovanipaul/ThreatLens/actions/workflows/security.yml)
 ![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
@@ -43,6 +44,8 @@ interface for reviewing and managing findings.
 - Preserves append-only alert investigation history with analyst notes and transitions
 - Emits structured JSON request and import logs with traceable request IDs
 - Exposes Prometheus metrics plus separate liveness and database-readiness probes
+- Scans source, dependencies, and pull-request changes for security issues
+- Publishes versioned, provenance-attested containers from semantic version tags
 - Runs locally or in Docker with persistent storage
 - Validates every push with Ruff, Pytest, and a Docker build in GitHub Actions
 
@@ -93,6 +96,7 @@ fails clearly when a value is malformed or outside its safe range.
 | `MAX_UPLOAD_MB` | `2` | Maximum uploaded log size |
 | `MAX_LOG_LINES` | `50000` | Maximum lines accepted per import |
 | `THREATLENS_LOG_LEVEL` | `INFO` | Structured application log verbosity |
+| `THREATLENS_VERSION` | `dev` | Version displayed in OpenAPI metadata |
 
 ## Quick Start
 
@@ -177,6 +181,8 @@ to the default SQLite suite.
 9. Filter the tables or export the results as CSV or JSON.
 
 Importing the same file again does not duplicate stored events or alerts.
+For a presentation-ready sequence and talking points, see the
+[five-minute demo guide](docs/DEMO.md).
 
 ## API
 
@@ -228,6 +234,19 @@ plus import totals, duration, parsed and stored event counts, and generated and
 stored alert counts. `/health` is a process liveness probe, while `/ready`
 performs a database query. The Docker health check uses `/ready`.
 
+## Security and Releases
+
+The Security workflow runs Bandit, audits every pinned Python dependency, scans
+the source with CodeQL, and reviews dependency changes in pull requests.
+Dependabot proposes weekly updates for Python, GitHub Actions, and the base
+container image.
+
+Semantic version tags such as `v1.0.0` trigger a gated release workflow. After
+lint, tests, PostgreSQL integration coverage, and security checks pass, the
+workflow publishes versioned images to GitHub Container Registry, attaches
+build-provenance attestations, and creates a GitHub release with generated
+notes. See the [release checklist](docs/RELEASING.md).
+
 ## Project Structure
 
 ```text
@@ -273,7 +292,9 @@ docker build -t threatlens .
 
 The suite covers parsing, detection, persistence, reporting, API behavior,
 upload boundaries, and alert lifecycle management. GitHub Actions enforces a
-minimum of **95% application-code coverage** on every push.
+minimum of **95% application-code coverage** on every push. The separate
+Security workflow runs on pushes, pull requests, a weekly schedule, and manual
+dispatch.
 
 ## Security Decisions and Limitations
 

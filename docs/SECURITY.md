@@ -41,6 +41,10 @@ the public internet or treated as a replacement for a production SIEM.
 - Append-only per-alert history with actor identity, state transition, and notes
 - Bounded, startup-validated detection and upload configuration
 - Versioned Alembic migrations with SQLite and PostgreSQL integration tests
+- JSON request logging, bounded request IDs, and low-cardinality metrics
+- Dedicated Bandit, pip-audit, CodeQL, and pull-request dependency review checks
+- Weekly Dependabot review for Python, workflow, and container dependencies
+- Provenance-attested GitHub Container Registry images for versioned releases
 
 ## Known Limitations
 
@@ -49,8 +53,7 @@ the public internet or treated as a replacement for a production SIEM.
 - No malware scanning for uploaded files
 - No general API rate limiting or per-user quotas
 - Login throttling is process-local rather than shared across workers
-- No immutable analyst audit log
-- No administrator UI or API for provisioning and deactivating users
+- Audit records are database-backed but not externally write-once or tamper-evident
 - Detection is rule-based and limited to the supported OpenSSH formats
 - The default development server is not intended for public production use
 
@@ -65,5 +68,5 @@ If ThreatLens is extended beyond local demonstrations:
 - Store data in an encrypted, access-controlled database.
 - Add shared edge rate limiting and an audit-log retention policy.
 - Run the container as a non-root user with a read-only filesystem where possible.
-- Review dependencies and container images regularly.
+- Review automated dependency, CodeQL, and container findings before releases.
 - Never upload logs containing sensitive data without authorization.

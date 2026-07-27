@@ -7,7 +7,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 class AlertType(StrEnum):
     BRUTE_FORCE = "brute_force"
-    PASSWORD_SPRAYING = "password_spraying"
+    # This is a detection identifier, not a hardcoded credential.
+    PASSWORD_SPRAYING = "password_spraying"  # nosec B105
     SUCCESS_AFTER_FAILURES = "success_after_failures"
 
 

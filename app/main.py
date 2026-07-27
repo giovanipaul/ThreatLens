@@ -57,6 +57,7 @@ def create_app(
     }
     logger = create_logger(os.getenv("THREATLENS_LOG_LEVEL", "INFO"))
     observability = Observability()
+    application_version = os.getenv("THREATLENS_VERSION", "dev")
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -74,7 +75,7 @@ def create_app(
     application = FastAPI(
         title="ThreatLens",
         description="Security event log analysis and detection API.",
-        version="0.2.0",
+        version=application_version,
         lifespan=lifespan,
     )
     application.state.repository = threat_repository

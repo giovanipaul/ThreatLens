@@ -45,3 +45,15 @@ def test_dashboard_renders_for_authenticated_admin(client: TestClient) -> None:
     assert "Authentication events" in response.text
     assert "/static/dashboard.js" in response.text
     assert "admin · admin" in response.text
+
+
+def test_exposes_configured_application_version(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("THREATLENS_VERSION", "v1.2.3")
+    application = create_app(
+        ThreatRepository(f"sqlite:///{tmp_path / 'version.db'}")
+    )
+
+    assert application.version == "v1.2.3"
