@@ -79,7 +79,7 @@ jobs:
         run: python -m pip_audit -r requirements.txt
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
