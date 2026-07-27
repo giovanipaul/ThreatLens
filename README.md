@@ -21,6 +21,11 @@ it accepts raw log data, validates and normalizes each event, runs multiple
 detection strategies, stores results safely, and gives an analyst a focused
 interface for reviewing and managing findings.
 
+For a concise engineering narrative, measurable outcomes, and resume-ready
+bullets, see the [portfolio case study](docs/PORTFOLIO.md). For system-design,
+security, and behavioral preparation, see the
+[interview guide](docs/INTERVIEW.md).
+
 ## Key Features
 
 - Parses successful, failed, and invalid-user OpenSSH authentication events
