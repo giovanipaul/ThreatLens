@@ -46,6 +46,7 @@ security, and behavioral preparation, see the
 - Supports password rotation, administrator-managed accounts, and session revocation
 - Protects mutations with CSRF tokens and throttles repeated login failures
 - Audits authentication, account administration, imports, and alert actions
+- Optionally explains rule-generated alerts with AI, with explicit analyst verification
 - Preserves append-only alert investigation history with analyst notes and transitions
 - Emits structured JSON request and import logs with traceable request IDs
 - Exposes Prometheus metrics plus separate liveness and database-readiness probes
@@ -85,6 +86,24 @@ Thresholds and time windows are defined in the detection modules and can be
 adjusted through validated environment settings without changing code.
 
 ## Configuration
+
+### Optional AI alert explanations
+
+Set `THREATLENS_OPENAI_API_KEY` in the server environment to enable
+`POST /api/alerts/{id}/explanation`. This feature uses OpenAI's `gpt-4o-mini`
+model and incurs API charges. Leave the key unset to disable it. The dashboard
+asks before sending an alert's source IP, up to 20 truncated account names,
+timestamps, event count, severity and detection rule to OpenAI. Raw logs,
+descriptions and session data are not sent. Only use it when your data policy
+permits this disclosure. Model output is untrusted guidance, not detection or
+automated remediation; verify it against source events.
+
+Requests require authentication and CSRF protection. Uncached calls are
+limited to one per user per minute and 20 per UTC day per database, including
+failed or timed-out attempts. These are request limits, not a dollar spending
+cap; configure provider-side billing controls as well. Validated responses are
+cached by evidence and model, and request outcomes are audited. The limits do
+not cover other applications using the same API key.
 
 Copy `.env.example` to `.env` for Docker Compose, or export the settings before
 starting Uvicorn. ThreatLens validates every numeric setting during startup and
