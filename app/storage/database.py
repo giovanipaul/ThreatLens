@@ -49,10 +49,12 @@ class UTCDateTime(TypeDecorator[datetime]):
 
 def create_database_engine(database_url: str = "sqlite:///threatlens.db") -> Engine:
     url = make_url(database_url)
+    if url.drivername in {"postgres", "postgresql"}:
+        url = url.set(drivername="postgresql+psycopg")
     connect_args = (
         {"check_same_thread": False} if url.get_backend_name() == "sqlite" else {}
     )
-    return create_engine(database_url, connect_args=connect_args)
+    return create_engine(url, connect_args=connect_args)
 
 
 def create_session_factory(engine: Engine) -> sessionmaker:
