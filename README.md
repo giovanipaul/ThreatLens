@@ -15,10 +15,12 @@ workflow, reporting APIs, and a responsive monitoring dashboard.
 
 ## Live deployment
 
-[Open the hosted ThreatLens instance](https://threatlens-5c5k.onrender.com/).
+[Open the read-only sample preview](https://threatlens-5c5k.onrender.com/demo).
 The instance runs on Render with a Neon PostgreSQL database and contains sample
 authentication events. A login is required; there is currently no public demo
-account. To try it yourself, run the project locally, create your own admin
+account. The preview uses fixed sample data, is separate from the live database,
+and cannot import, edit alerts, access accounts, or call AI. To try the full
+application yourself, run it locally, create your own admin
 credentials, and import `sample_data/auth.log` as described below. The free hosting instance
 may take a minute or longer to wake after inactivity.
 
