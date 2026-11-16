@@ -6,6 +6,8 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
 
+**Live demo:** [Read-only sample preview](https://threatlens-5c5k.onrender.com/demo) (login required; no public demo account yet)
+
 ThreatLens is a security log analysis application that converts raw OpenSSH
 authentication logs into normalized events and prioritized alerts. It combines
 a FastAPI backend, configurable detection rules, SQLite or PostgreSQL persistence, an analyst
@@ -17,8 +19,7 @@ workflow, reporting APIs, and a responsive monitoring dashboard.
 
 [Open the read-only sample preview](https://threatlens-5c5k.onrender.com/demo).
 The instance runs on Render with a Neon PostgreSQL database and contains sample
-authentication events. A login is required; there is currently no public demo
-account. The preview uses fixed sample data, is separate from the live database,
+authentication events. **A login is required; there is currently no public demo account.** The preview uses fixed sample data, is separate from the live database,
 and cannot import, edit alerts, access accounts, or call AI. To try the full
 application yourself, run it locally, create your own admin
 credentials, and import `sample_data/auth.log` as described below. The free hosting instance
