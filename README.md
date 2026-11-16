@@ -54,6 +54,7 @@ security, and behavioral preparation, see the
 - Prevents duplicate imports using deterministic SHA-256 fingerprints
 - Persists events, alerts, and analyst status changes in SQLite or PostgreSQL with SQLAlchemy
 - Supports open, acknowledged, and resolved alert workflows
+- Posts high-severity alerts to a configured webhook URL
 - Filters telemetry and alerts by result, source IP, severity, and status
 - Exports filtered events and alerts as CSV or JSON
 - Provides an accessible, responsive analyst dashboard and OpenAPI documentation
@@ -122,6 +123,16 @@ cap; configure provider-side billing controls as well. Validated responses are
 cached by evidence and model, and request outcomes are audited. The limits do
 not cover other applications using the same API key.
 
+### Outbound webhook alerts
+
+Set `THREATLENS_WEBHOOK_URL` in the server environment to post every
+high-severity alert to a generic webhook as JSON after a log import. The
+payload carries the event name `threatlens.alert.high` plus the alert type,
+severity, title, description, source IP, time range, event count, and
+usernames. Leave the URL unset to disable delivery. A failed delivery is
+logged and never blocks the import. Keep the URL in the server environment
+only; never commit a webhook URL that carries a secret token.
+
 Copy `.env.example` to `.env` for Docker Compose, or export the settings before
 starting Uvicorn. ThreatLens validates every numeric setting during startup and
 fails clearly when a value is malformed or outside its safe range.
@@ -136,6 +147,8 @@ fails clearly when a value is malformed or outside its safe range.
 | `SUSPICIOUS_SUCCESS_WINDOW_SECONDS` | `600` | Suspicious-success correlation window |
 | `CREDENTIAL_STUFFING_IP_THRESHOLD` | `5` | Distinct source IPs required for a stuffing alert |
 | `CREDENTIAL_STUFFING_WINDOW_SECONDS` | `600` | Credential-stuffing correlation window |
+| `THREATLENS_WEBHOOK_URL` | _(unset)_ | Webhook URL for high-severity alerts; unset disables delivery |
+| `THREATLENS_WEBHOOK_TIMEOUT_SECONDS` | `5` | Webhook request timeout |
 | `MAX_UPLOAD_MB` | `2` | Maximum uploaded log size |
 | `MAX_LOG_LINES` | `50000` | Maximum lines accepted per import |
 | `THREATLENS_LOG_LEVEL` | `INFO` | Structured application log verbosity |
