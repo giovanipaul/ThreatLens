@@ -27,6 +27,8 @@ class DetectionSettings:
     password_spray_window_seconds: int = 600
     suspicious_success_failure_threshold: int = 3
     suspicious_success_window_seconds: int = 600
+    credential_stuffing_ip_threshold: int = 5
+    credential_stuffing_window_seconds: int = 600
     max_upload_mb: int = 2
     max_log_lines: int = 50_000
 
@@ -38,6 +40,8 @@ class DetectionSettings:
             "password_spray_window_seconds": (1, 86_400),
             "suspicious_success_failure_threshold": (1, 10_000),
             "suspicious_success_window_seconds": (1, 86_400),
+            "credential_stuffing_ip_threshold": (2, 10_000),
+            "credential_stuffing_window_seconds": (1, 86_400),
             "max_upload_mb": (1, 100),
             "max_log_lines": (1, 1_000_000),
         }
@@ -80,6 +84,18 @@ class DetectionSettings:
             ),
             suspicious_success_window_seconds=_integer_setting(
                 "SUSPICIOUS_SUCCESS_WINDOW_SECONDS",
+                600,
+                minimum=1,
+                maximum=86_400,
+            ),
+            credential_stuffing_ip_threshold=_integer_setting(
+                "CREDENTIAL_STUFFING_IP_THRESHOLD",
+                5,
+                minimum=2,
+                maximum=10_000,
+            ),
+            credential_stuffing_window_seconds=_integer_setting(
+                "CREDENTIAL_STUFFING_WINDOW_SECONDS",
                 600,
                 minimum=1,
                 maximum=86_400,

@@ -312,3 +312,61 @@ def test_downloads_reports(
     assert response.status_code == 200
     assert response.headers["content-type"].startswith(media_type)
     assert filename in response.headers["content-disposition"]
+
+
+def test_pages_events_and_alerts_with_offset(client: TestClient) -> None:
+    client.post(
+        "/api/logs/import?year=2026",
+        files={"file": ("auth.log", suspicious_log(), "text/plain")},
+    )
+
+    first_page = client.get(
+        "/api/events", params={"limit": 2, "offset": 0}
+    )
+    second_page = client.get(
+        "/api/events", params={"limit": 2, "offset": 2}
+    )
+    remainder = client.get(
+        "/api/events", params={"limit": 2, "offset": 4}
+    )
+    beyond = client.get("/api/events", params={"offset": 5})
+    invalid_offset = client.get("/api/events", params={"offset": -1})
+    alerts_page = client.get(
+        "/api/alerts", params={"limit": 1, "offset": 1}
+    )
+
+    assert [len(page.json()) for page in (first_page, second_page)] == [2, 2]
+    assert len(remainder.json()) == 1
+    assert beyond.json() == []
+    assert invalid_offset.status_code == 422
+    assert alerts_page.json() == []
+
+
+def credential_stuffing_log() -> str:
+    return "\n".join(
+        [
+            (
+                f"Jul 23 21:14:0{minute} web-01 sshd[{1800 + minute}]: "
+                f"Accepted password for alice from 203.0.113.{minute + 1} "
+                f"port {49210 + minute} ssh2"
+            )
+            for minute in range(5)
+        ]
+    )
+
+
+def test_imports_log_and_detects_credential_stuffing(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/logs/import?year=2026",
+        files={"file": ("auth.log", credential_stuffing_log(), "text/plain")},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["alerts_generated"] == 1
+    alerts = client.get("/api/alerts").json()
+    assert len(alerts) == 1
+    assert alerts[0]["alert_type"] == "credential_stuffing"
+    assert alerts[0]["usernames"] == ["alice"]
+    assert alerts[0]["event_count"] == 5

@@ -48,6 +48,7 @@ security, and behavioral preparation, see the
 - Validates IPv4/IPv6 addresses and safely skips malformed or unsupported lines
 - Detects brute-force attempts from repeated failures by one source
 - Detects password spraying across multiple targeted usernames
+- Detects one username authenticating from many distinct source IPs
 - Correlates successful logins with preceding failures from the same source
 - Assigns structured severity levels and records targeted users and attempt counts
 - Prevents duplicate imports using deterministic SHA-256 fingerprints
@@ -96,6 +97,7 @@ responsibilities separate so that each layer remains independently testable.
 | Brute force | Repeated failures from one source within a configurable window | Medium or high alert with attempt count and targeted users |
 | Password spray | One source attempts authentication across several usernames | Structured password-spraying alert |
 | Suspicious success | A successful login follows repeated failures from the same source | Correlated successful-login alert |
+| Credential stuffing | One username authenticates successfully from many distinct source IPs | Structured credential-stuffing alert |
 
 Thresholds and time windows are defined in the detection modules and can be
 adjusted through validated environment settings without changing code.
@@ -132,6 +134,8 @@ fails clearly when a value is malformed or outside its safe range.
 | `PASSWORD_SPRAY_WINDOW_SECONDS` | `600` | Password-spray correlation window |
 | `SUSPICIOUS_SUCCESS_FAILURE_THRESHOLD` | `3` | Failures required before a successful login |
 | `SUSPICIOUS_SUCCESS_WINDOW_SECONDS` | `600` | Suspicious-success correlation window |
+| `CREDENTIAL_STUFFING_IP_THRESHOLD` | `5` | Distinct source IPs required for a stuffing alert |
+| `CREDENTIAL_STUFFING_WINDOW_SECONDS` | `600` | Credential-stuffing correlation window |
 | `MAX_UPLOAD_MB` | `2` | Maximum uploaded log size |
 | `MAX_LOG_LINES` | `50000` | Maximum lines accepted per import |
 | `THREATLENS_LOG_LEVEL` | `INFO` | Structured application log verbosity |

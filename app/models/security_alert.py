@@ -10,6 +10,7 @@ class AlertType(StrEnum):
     # This is a detection identifier, not a hardcoded credential.
     PASSWORD_SPRAYING = "password_spraying"  # nosec B105
     SUCCESS_AFTER_FAILURES = "success_after_failures"
+    CREDENTIAL_STUFFING = "credential_stuffing"
 
 
 class AlertSeverity(StrEnum):
