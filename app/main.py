@@ -156,7 +156,7 @@ def create_app(
         return response
 
     @application.get("/", response_class=HTMLResponse)
-    def dashboard(request: Request) -> HTMLResponse:
+    def dashboard(request: Request) -> Response:
         token = request.cookies.get(SESSION_COOKIE_NAME)
         user = threat_repository.get_session_user(token) if token else None
         if user is None:
@@ -175,7 +175,7 @@ def create_app(
         return response
 
     @application.get("/login", response_class=HTMLResponse)
-    def login_page(request: Request) -> HTMLResponse:
+    def login_page(request: Request) -> Response:
         token = request.cookies.get(SESSION_COOKIE_NAME)
         if token and threat_repository.get_session_user(token):
             return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
@@ -185,8 +185,12 @@ def create_app(
             context={"error": None},
         )
 
+    @application.get("/demo", response_class=HTMLResponse)
+    def demo_page(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(request=request, name="demo.html")
+
     @application.get("/account", response_class=HTMLResponse)
-    def account_page(request: Request) -> HTMLResponse:
+    def account_page(request: Request) -> Response:
         token = request.cookies.get(SESSION_COOKIE_NAME)
         user = threat_repository.get_session_user(token) if token else None
         if user is None:
@@ -209,7 +213,7 @@ def create_app(
         request: Request,
         username: str = Form(),
         password: str = Form(),
-    ) -> HTMLResponse:
+    ) -> Response:
         source_ip = request.client.host if request.client else "unknown"
         now = time.monotonic()
         failures = login_failures[source_ip]

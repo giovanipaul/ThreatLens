@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Read-only ThreatLens sample preview">
+    <title>Sample preview | ThreatLens</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+    <script src="{{ url_for('static', path='/demo.js') }}" defer></script>
+</head>
+<body>
+<header class="site-header">
+    <a class="brand" href="/demo"><span class="brand-mark">TL</span><span><strong>ThreatLens</strong><small>Security event intelligence</small></span></a>
+    <a class="account-link" href="/login">Administrator sign in</a>
+</header>
+<main>
+    <section class="hero">
+        <div>
+            <p class="eyebrow">Read-only sample preview</p>
+            <h1>Investigate suspicious SSH activity.</h1>
+            <p class="hero-copy">Explore fixed example data from the included sample log. This preview is isolated from the live database: it cannot import logs, modify alerts, access accounts, or call AI. Sign in to use the full application.</p>
+        </div>
+    </section>
+    <section class="metrics" aria-label="Sample security overview">
+        <article class="metric-card"><span>Total events</span><strong>8</strong><small>Sample records</small></article>
+        <article class="metric-card danger"><span>Failed logins</span><strong>6</strong><small>Authentication failures</small></article>
+        <article class="metric-card success"><span>Successful logins</span><strong>2</strong><small>Accepted sessions</small></article>
+        <article class="metric-card warning"><span>Sample alerts</span><strong>1</strong><small>Rule-generated finding</small></article>
+    </section>
+    <section class="data-section">
+        <div class="section-heading"><div><p class="eyebrow">Prioritized findings</p><h2>Detection alert</h2></div></div>
+        <p>Medium · Possible SSH brute-force attack</p>
+        <p>Five failed attempts from <code>203.0.113.10</code> targeted admin, deploy, and root within five minutes.</p>
+    </section>
+    <section class="data-section">
+        <div class="section-heading"><div><p class="eyebrow">Normalized telemetry</p><h2>Sample authentication events</h2></div>
+            <label>Result <select id="demo-result"><option value="all">All results</option><option value="failure">Failure</option><option value="success">Success</option></select></label>
+        </div>
+        <div class="table-shell"><table><thead><tr><th scope="col">Result</th><th scope="col">Username</th><th scope="col">Source IP</th><th scope="col">Method</th></tr></thead><tbody>
+            <tr data-result="success"><td>Success</td><td>deploy</td><td>2001:db8::8</td><td>publickey</td></tr>
+            <tr data-result="failure"><td>Failure</td><td>root</td><td>203.0.113.10</td><td>password</td></tr>
+            <tr data-result="failure"><td>Failure</td><td>deploy</td><td>203.0.113.10</td><td>password</td></tr>
+            <tr data-result="success"><td>Success</td><td>analyst</td><td>192.0.2.5</td><td>password</td></tr>
+            <tr data-result="failure"><td>Failure</td><td>admin</td><td>203.0.113.10</td><td>password</td></tr>
+            <tr data-result="failure"><td>Failure</td><td>root</td><td>203.0.113.10</td><td>password</td></tr>
+            <tr data-result="failure"><td>Failure</td><td>admin2</td><td>198.51.100.24</td><td>password</td></tr>
+            <tr data-result="failure"><td>Failure</td><td>root</td><td>203.0.113.10</td><td>password</td></tr>
+        </tbody></table></div>
+    </section>
+</main>
+</body>
+</html>
