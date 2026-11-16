@@ -36,7 +36,8 @@
         <div class="section-heading"><div><p class="eyebrow">Normalized telemetry</p><h2>Sample authentication events</h2></div>
             <label>Result <select id="demo-result"><option value="all">All results</option><option value="failure">Failure</option><option value="success">Success</option></select></label>
         </div>
-        <div class="table-shell"><table><thead><tr><th scope="col">Result</th><th scope="col">Username</th><th scope="col">Source IP</th><th scope="col">Method</th></tr></thead><tbody>
+        <p class="upload-help" id="demo-table-hint">On smaller screens, scroll horizontally to see all columns.</p>
+        <div class="table-shell" role="region" aria-label="Sample events table" aria-describedby="demo-table-hint" tabindex="0"><table><thead><tr><th scope="col">Result</th><th scope="col">Username</th><th scope="col">Source IP</th><th scope="col">Method</th></tr></thead><tbody>
             <tr data-result="success"><td>Success</td><td>deploy</td><td>2001:db8::8</td><td>publickey</td></tr>
             <tr data-result="failure"><td>Failure</td><td>root</td><td>203.0.113.10</td><td>password</td></tr>
             <tr data-result="failure"><td>Failure</td><td>deploy</td><td>203.0.113.10</td><td>password</td></tr>

@@ -39,6 +39,8 @@ def test_public_demo_is_static_and_does_not_grant_access(client: TestClient) -> 
     assert response.status_code == 200
     assert "Read-only sample preview" in response.text
     assert "isolated from the live database" in response.text
+    assert "scroll horizontally to see all columns" in response.text
+    assert 'aria-describedby="demo-table-hint"' in response.text
     assert 'src="http://testserver/static/demo.js"' in response.text
     assert response.text.count('data-result="failure"') == 6
     assert response.text.count('data-result="success"') == 2
