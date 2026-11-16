@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -312,3 +313,108 @@ def test_downloads_reports(
     assert response.status_code == 200
     assert response.headers["content-type"].startswith(media_type)
     assert filename in response.headers["content-disposition"]
+
+
+def brute_force_log(lines: int = 10) -> str:
+    return "\n".join(
+        [
+            (
+                f"Jul 23 21:14:{second:02d} web-01 sshd[{1800 + second}]: "
+                f"Failed password for root from 203.0.113.10 "
+                f"port {49210 + second} ssh2"
+            )
+            for second in range(lines)
+        ]
+    )
+
+
+@pytest.fixture
+def webhook_client(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[TestClient]:
+    monkeypatch.setenv("THREATLENS_ADMIN_USERNAME", "admin")
+    monkeypatch.setenv("THREATLENS_ADMIN_PASSWORD", "secure admin password")
+    application = create_app(
+        ThreatRepository(f"sqlite:///{tmp_path / 'webhook.db'}"),
+        detection_settings=DetectionSettings(
+            webhook_url="https://hooks.example.test/threatlens"
+        ),
+    )
+    with TestClient(application) as test_client:
+        test_client.post(
+            "/login",
+            data={"username": "admin", "password": "secure admin password"},
+        )
+        test_client.headers["X-CSRF-Token"] = test_client.cookies[
+            "threatlens_csrf"
+        ]
+        yield test_client
+
+
+def test_posts_high_alerts_to_configured_webhook(
+    webhook_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delivered = []
+
+    def fake_dispatch(url, alert, **kwargs):
+        delivered.append((url, alert))
+        return True
+
+    monkeypatch.setattr(
+        "app.api.routes.dispatch_alert_webhook", fake_dispatch
+    )
+
+    response = webhook_client.post(
+        "/api/logs/import?year=2026",
+        files={"file": ("auth.log", brute_force_log(), "text/plain")},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["alerts_generated"] == 1
+    assert len(delivered) == 1
+    assert delivered[0][0] == "https://hooks.example.test/threatlens"
+    assert delivered[0][1].severity.value == "high"
+
+
+def test_does_not_post_medium_alerts_to_webhook(
+    webhook_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delivered = []
+
+    def fake_dispatch(url, alert, **kwargs):
+        delivered.append((url, alert))
+        return True
+
+    monkeypatch.setattr(
+        "app.api.routes.dispatch_alert_webhook", fake_dispatch
+    )
+
+    response = webhook_client.post(
+        "/api/logs/import?year=2026",
+        files={"file": ("auth.log", suspicious_log(), "text/plain")},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["alerts_generated"] == 1
+    assert delivered == []
+
+
+def test_import_succeeds_when_webhook_delivery_fails(
+    webhook_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.api.routes.dispatch_alert_webhook",
+        lambda url, alert, **kwargs: False,
+    )
+
+    response = webhook_client.post(
+        "/api/logs/import?year=2026",
+        files={"file": ("auth.log", brute_force_log(), "text/plain")},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["alerts_saved"] == 1

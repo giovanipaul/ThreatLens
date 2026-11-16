@@ -58,6 +58,7 @@ from app.services.explanation_provider import (
     ExplanationProviderError,
     generate_guidance,
 )
+from app.services.webhook import dispatch_alert_webhook
 from app.storage import ThreatRepository
 from app.storage.explanations import (
     cache_guidance,
@@ -153,6 +154,22 @@ async def import_log(
         alerts_generated=len(alerts),
         alerts_saved=repository.save_alerts(alerts),
     )
+    if settings.webhook_url:
+        for alert in alerts:
+            if alert.severity != AlertSeverity.HIGH:
+                continue
+            if not dispatch_alert_webhook(
+                settings.webhook_url,
+                alert,
+                timeout_seconds=settings.webhook_timeout_seconds,
+            ):
+                request.app.state.logger.warning(
+                    "webhook.delivery_failed",
+                    extra={
+                        "request_id": request.state.request_id,
+                        "alert_type": alert.alert_type.value,
+                    },
+                )
     repository.record_audit(
         "log.imported",
         actor_id=admin.id,

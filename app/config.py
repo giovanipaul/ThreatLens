@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 
 def _integer_setting(
@@ -27,6 +28,8 @@ class DetectionSettings:
     password_spray_window_seconds: int = 600
     suspicious_success_failure_threshold: int = 3
     suspicious_success_window_seconds: int = 600
+    webhook_url: str = ""
+    webhook_timeout_seconds: int = 5
     max_upload_mb: int = 2
     max_log_lines: int = 50_000
 
@@ -38,6 +41,7 @@ class DetectionSettings:
             "password_spray_window_seconds": (1, 86_400),
             "suspicious_success_failure_threshold": (1, 10_000),
             "suspicious_success_window_seconds": (1, 86_400),
+            "webhook_timeout_seconds": (1, 60),
             "max_upload_mb": (1, 100),
             "max_log_lines": (1, 1_000_000),
         }
@@ -46,6 +50,12 @@ class DetectionSettings:
             if not minimum <= value <= maximum:
                 raise ValueError(
                     f"{name} must be between {minimum} and {maximum}."
+                )
+        if self.webhook_url:
+            parsed = urlparse(self.webhook_url)
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                raise ValueError(
+                    "webhook_url must be an http or https URL."
                 )
 
     @classmethod
@@ -83,6 +93,13 @@ class DetectionSettings:
                 600,
                 minimum=1,
                 maximum=86_400,
+            ),
+            webhook_url=os.getenv("THREATLENS_WEBHOOK_URL", "").strip(),
+            webhook_timeout_seconds=_integer_setting(
+                "THREATLENS_WEBHOOK_TIMEOUT_SECONDS",
+                5,
+                minimum=1,
+                maximum=60,
             ),
             max_upload_mb=_integer_setting(
                 "MAX_UPLOAD_MB", 2, minimum=1, maximum=100
