@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -8,7 +9,7 @@ from app.storage import ThreatRepository
 
 
 @pytest.fixture
-def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     monkeypatch.setenv("THREATLENS_ADMIN_USERNAME", "admin")
     monkeypatch.setenv("THREATLENS_ADMIN_PASSWORD", "this is a secure password")
     application = create_app(
@@ -30,6 +31,23 @@ def test_dashboard_requires_login(client: TestClient) -> None:
 
     assert response.status_code == 303
     assert response.headers["location"] == "/login"
+
+
+def test_public_demo_is_static_and_does_not_grant_access(client: TestClient) -> None:
+    response = client.get("/demo")
+
+    assert response.status_code == 200
+    assert "Read-only sample preview" in response.text
+    assert "isolated from the live database" in response.text
+    assert "scroll horizontally to see all columns" in response.text
+    assert 'aria-describedby="demo-table-hint"' in response.text
+    assert 'src="http://testserver/static/demo.js"' in response.text
+    assert response.text.count('data-result="failure"') == 6
+    assert response.text.count('data-result="success"') == 2
+    assert not response.cookies
+    assert client.get("/api/events").status_code == 401
+    assert client.get("/account", follow_redirects=False).headers["location"] == "/login"
+    assert client.post("/demo").status_code == 405
 
 
 def test_dashboard_renders_for_authenticated_admin(client: TestClient) -> None:

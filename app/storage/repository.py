@@ -363,6 +363,11 @@ class ThreatRepository:
                 for record, stored_status in rows
             ]
 
+    def get_alert(self, alert_id: int) -> SecurityAlert | None:
+        with self.sessions() as session:
+            record = session.get(AlertRecord, alert_id)
+            return self._record_to_alert(record) if record else None
+
     def set_alert_status(
         self,
         alert_id: int,

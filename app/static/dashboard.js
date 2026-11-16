@@ -108,6 +108,8 @@ function createAlertActionCell(alert) {
     const button = document.createElement("button");
     const historyButton = document.createElement("button");
     const historyList = document.createElement("div");
+    const explainButton = document.createElement("button");
+    const explanation = document.createElement("div");
     const nextState = {
         open: "acknowledged",
         acknowledged: "resolved",
@@ -172,7 +174,28 @@ function createAlertActionCell(alert) {
             historyButton.disabled = false;
         }
     });
-    cell.append(button, historyButton, historyList);
+    explainButton.type = "button";
+    explainButton.className = "table-action";
+    explainButton.textContent = "Explain with AI";
+    explanation.className = "alert-history";
+    explainButton.addEventListener("click", async () => {
+        if (!window.confirm("Send this alert's IP address, targeted account names, timing, count, and detection rule to OpenAI for an AI-generated explanation?")) return;
+        explainButton.disabled = true;
+        try {
+            const result = await fetchJson(`/api/alerts/${alert.id}/explanation`, {method: "POST"});
+            explanation.replaceChildren();
+            for (const text of [result.disclaimer, result.summary, ...result.analyst_checks]) {
+                const paragraph = document.createElement("p");
+                paragraph.textContent = text;
+                explanation.append(paragraph);
+            }
+        } catch (error) {
+            explanation.textContent = error.message;
+        } finally {
+            explainButton.disabled = false;
+        }
+    });
+    cell.append(button, historyButton, explainButton, historyList, explanation);
     return cell;
 }
 
