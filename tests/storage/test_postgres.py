@@ -6,6 +6,7 @@ from sqlalchemy import inspect
 
 from app.models.security_event import AuthenticationResult, SecurityEvent
 from app.storage import ThreatRepository
+from app.storage.explanations import reserve_provider_call
 
 POSTGRES_URL = os.getenv("TEST_POSTGRES_URL")
 pytestmark = pytest.mark.skipif(
@@ -42,5 +43,8 @@ def test_repository_and_migrations_on_postgresql() -> None:
             "postgres secure password",
         ) == user
         assert "alembic_version" in inspect(repository.engine).get_table_names()
+        when = datetime(2040, 1, 1, tzinfo=UTC)
+        assert reserve_provider_call(repository, user.id, now=when, daily_limit=1)
+        assert not reserve_provider_call(repository, user.id, now=when, daily_limit=1)
     finally:
         repository.close()

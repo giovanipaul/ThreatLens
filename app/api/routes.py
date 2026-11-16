@@ -1,8 +1,10 @@
+import os
 import time
 from datetime import timedelta
 from pathlib import Path
 from typing import Annotated
 
+import httpx
 from fastapi import (
     APIRouter,
     Depends,
@@ -49,8 +51,20 @@ from app.schemas import (
     UserResponse,
     UserUpdate,
 )
+from app.schemas.explanations import AlertExplanation
 from app.services import alerts_to_csv, events_to_csv, models_to_json
+from app.services.alert_evidence import alert_evidence
+from app.services.explanation_provider import (
+    ExplanationProviderError,
+    generate_guidance,
+)
 from app.storage import ThreatRepository
+from app.storage.explanations import (
+    cache_guidance,
+    cached_guidance,
+    evidence_cache_key,
+    reserve_provider_call,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -65,6 +79,7 @@ CsrfDependency = Annotated[None, Depends(require_csrf)]
 MAX_UPLOAD_BYTES = 2 * 1024 * 1024
 MAX_LOG_LINES = 50_000
 ALLOWED_LOG_EXTENSIONS = {".log", ".txt"}
+EXPLANATION_MODEL = "gpt-4o-mini"
 
 
 @router.post(
@@ -196,6 +211,38 @@ def list_alerts(
         status=status_filter,
         limit=limit,
     )
+
+
+@router.post("/alerts/{alert_id}/explanation", response_model=AlertExplanation)
+def explain_alert(
+    alert_id: int,
+    repository: RepositoryDependency,
+    user: UserDependency,
+    csrf: CsrfDependency,
+) -> AlertExplanation:
+    api_key = os.getenv("THREATLENS_OPENAI_API_KEY", "").strip()
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Alert explanations are not configured.")
+    alert = repository.get_alert(alert_id)
+    if alert is None:
+        raise HTTPException(status_code=404, detail="Alert not found.")
+    evidence = alert_evidence(alert)
+    cache_key = evidence_cache_key(evidence, EXPLANATION_MODEL)
+    guidance = cached_guidance(repository, cache_key)
+    was_cached = guidance is not None
+    if guidance is None:
+        if not reserve_provider_call(repository, user.id):
+            raise HTTPException(status_code=429, detail="Explanation request limit reached.")
+        repository.record_audit("explanation.requested", actor_id=user.id, target_type="alert", target_id=str(alert_id))
+        try:
+            with httpx.Client() as client:
+                guidance = generate_guidance(evidence, api_key=api_key, model=EXPLANATION_MODEL, client=client)
+        except ExplanationProviderError as error:
+            repository.record_audit("explanation.failed", actor_id=user.id, target_type="alert", target_id=str(alert_id))
+            raise HTTPException(status_code=502, detail="Alert explanation is temporarily unavailable.") from error
+        cache_guidance(repository, cache_key, guidance)
+    repository.record_audit("explanation.viewed", actor_id=user.id, target_type="alert", target_id=str(alert_id), details={"cached": was_cached})
+    return AlertExplanation(**guidance.model_dump(), evidence=evidence, cached=was_cached)
 
 
 @router.patch(

@@ -1,6 +1,14 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.storage.database import Base, UTCDateTime
@@ -109,3 +117,28 @@ class AuditRecord(Base):
     target_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     source_ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
     details: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+
+
+class ExplanationCacheRecord(Base):
+    __tablename__ = "explanation_cache"
+
+    cache_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    guidance: Mapped[dict[str, object]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime())
+
+
+class ExplanationAttemptRecord(Base):
+    __tablename__ = "explanation_attempts"
+    __table_args__ = (
+        UniqueConstraint("day", "slot", name="uq_explanation_daily_slot"),
+        UniqueConstraint("user_id", "window", name="uq_explanation_user_window"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    day: Mapped[str] = mapped_column(String(10))
+    slot: Mapped[int] = mapped_column(Integer)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    window: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime())

@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+import pytest
 from sqlalchemy.dialects import postgresql, sqlite
 
 from app.storage import database
@@ -25,6 +26,15 @@ def test_uses_sqlite_only_connection_arguments(monkeypatch) -> None:
     )
     assert calls[0][1]["connect_args"] == {"check_same_thread": False}
     assert calls[1][1]["connect_args"] == {}
+
+
+@pytest.mark.parametrize("scheme", ["postgres", "postgresql"])
+def test_plain_postgres_url_uses_installed_psycopg_driver(monkeypatch, scheme) -> None:
+    calls = []
+    monkeypatch.setattr(database, "create_engine", lambda url, **kwargs: calls.append(url))
+    database.create_database_engine(f"{scheme}://user:password@db/threatlens")
+    assert calls[0].drivername == "postgresql+psycopg"
+    assert calls[0].password == "password"
 
 
 def test_utc_datetime_adapts_to_database_dialect() -> None:
