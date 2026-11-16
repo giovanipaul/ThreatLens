@@ -121,6 +121,12 @@ fails clearly when a value is malformed or outside its safe range.
 | `MAX_LOG_LINES` | `50000` | Maximum lines accepted per import |
 | `THREATLENS_LOG_LEVEL` | `INFO` | Structured application log verbosity |
 | `THREATLENS_VERSION` | `dev` | Version displayed in OpenAPI metadata |
+| `PORT` | `8000` | Container HTTP and readiness-check port |
+
+The container listens on `PORT`, allowing a hosting platform to choose its
+port. For PostgreSQL, set `THREATLENS_DATABASE_URL` to either a standard
+`postgres://`, `postgresql://`, or explicit `postgresql+psycopg://` URL; all use the
+installed psycopg driver. Configure secure cookies and TLS for public hosting.
 
 ## Quick Start
 
