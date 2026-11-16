@@ -3,6 +3,17 @@
 This walkthrough presents the complete analyst workflow in about five minutes
 using only documentation-range IP addresses and the bundled sample log.
 
+## Public preview (no account needed)
+
+Open the [read-only preview](https://threatlens-5c5k.onrender.com/demo). It
+shows eight fixed sample events and one example brute-force alert. Use the
+**Result** filter to compare successful and failed logins. The preview does not
+read the hosted database or allow imports, alert changes, account access, or AI
+requests. The free service may take a minute or longer to wake after inactivity.
+
+The following walkthrough uses the full application locally and requires your
+own administrator account; the public preview is not a full interactive demo.
+
 ## Prepare
 
 Copy the example environment and replace the bootstrap password before starting:
@@ -43,7 +54,8 @@ Open <http://127.0.0.1:8000/> and sign in with the credentials from `.env`.
 
 - Parsing, detection, persistence, API, and presentation are separate and tested.
 - Passwords use salted scrypt hashes; only session-token digests are stored.
-- Analysts have read/export access while administrators control mutations.
+- Analysts can review, export, and update alerts; administrators also import logs
+  and manage user accounts.
 - Alert transitions are append-only and preserve actor, timestamp, and notes.
 - Imports are bounded, validated, idempotent, audited, and observable.
 - SQLite supports a zero-configuration demo; PostgreSQL is exercised in CI.
