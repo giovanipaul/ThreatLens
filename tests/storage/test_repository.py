@@ -165,6 +165,37 @@ def test_rejects_status_update_for_missing_alert(
     assert not repository.set_alert_status(999, AlertStatus.RESOLVED)
 
 
+def test_pages_events_and_alerts_with_offset(
+    repository: ThreatRepository,
+) -> None:
+    repository.save_events([make_event(minute) for minute in range(5)])
+    repository.save_alerts(
+        BruteForceDetector().detect([make_event(minute) for minute in range(5)])
+    )
+
+    first_page = repository.list_events(limit=2, offset=0)
+    second_page = repository.list_events(limit=2, offset=2)
+    remainder = repository.list_events(limit=2, offset=4)
+    beyond = repository.list_events(limit=2, offset=5)
+
+    assert len(first_page) == 2
+    assert len(second_page) == 2
+    assert len(remainder) == 1
+    assert beyond == []
+    assert first_page[0].timestamp > second_page[0].timestamp
+    assert repository.list_managed_alerts(limit=1, offset=1) == []
+    assert len(repository.list_managed_alerts(limit=1, offset=0)) == 1
+
+
+@pytest.mark.parametrize("offset", [-1])
+def test_rejects_invalid_query_offset(
+    repository: ThreatRepository,
+    offset: int,
+) -> None:
+    with pytest.raises(ValueError):
+        repository.list_events(offset=offset)
+
+
 @pytest.mark.parametrize("limit", [0, 1001])
 def test_rejects_invalid_query_limit(
     repository: ThreatRepository,

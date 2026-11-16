@@ -301,8 +301,10 @@ class ThreatRepository:
         result: AuthenticationResult | None = None,
         source_ip: str | None = None,
         limit: int = 100,
+        offset: int = 0,
     ) -> list[SecurityEvent]:
         self._validate_limit(limit)
+        self._validate_offset(offset)
         statement = select(EventRecord).order_by(EventRecord.timestamp.desc())
         if result is not None:
             statement = statement.where(EventRecord.result == result.value)
@@ -310,7 +312,9 @@ class ThreatRepository:
             statement = statement.where(EventRecord.source_ip == source_ip)
 
         with self.sessions() as session:
-            records = session.scalars(statement.limit(limit)).all()
+            records = session.scalars(
+                statement.limit(limit).offset(offset)
+            ).all()
             return [self._record_to_event(record) for record in records]
 
     def list_alerts(
@@ -318,14 +322,18 @@ class ThreatRepository:
         *,
         severity: AlertSeverity | None = None,
         limit: int = 100,
+        offset: int = 0,
     ) -> list[SecurityAlert]:
         self._validate_limit(limit)
+        self._validate_offset(offset)
         statement = select(AlertRecord).order_by(AlertRecord.started_at.desc())
         if severity is not None:
             statement = statement.where(AlertRecord.severity == severity.value)
 
         with self.sessions() as session:
-            records = session.scalars(statement.limit(limit)).all()
+            records = session.scalars(
+                statement.limit(limit).offset(offset)
+            ).all()
             return [self._record_to_alert(record) for record in records]
 
     def list_managed_alerts(
@@ -334,8 +342,10 @@ class ThreatRepository:
         severity: AlertSeverity | None = None,
         status: AlertStatus | None = None,
         limit: int = 100,
+        offset: int = 0,
     ) -> list[ManagedAlert]:
         self._validate_limit(limit)
+        self._validate_offset(offset)
         statement = (
             select(AlertRecord, AlertStateRecord.status)
             .outerjoin(
@@ -357,7 +367,9 @@ class ThreatRepository:
             statement = statement.where(AlertStateRecord.status == status.value)
 
         with self.sessions() as session:
-            rows = session.execute(statement.limit(limit)).all()
+            rows = session.execute(
+                statement.limit(limit).offset(offset)
+            ).all()
             return [
                 self._record_to_managed_alert(record, stored_status)
                 for record, stored_status in rows
@@ -438,6 +450,11 @@ class ThreatRepository:
     def _validate_limit(limit: int) -> None:
         if not 1 <= limit <= 1000:
             raise ValueError("Limit must be between 1 and 1000.")
+
+    @staticmethod
+    def _validate_offset(offset: int) -> None:
+        if offset < 0:
+            raise ValueError("Offset must be at least 0.")
 
     @staticmethod
     def _normalize_username(username: str) -> str:

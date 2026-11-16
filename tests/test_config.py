@@ -11,6 +11,8 @@ def test_uses_documented_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
         "PASSWORD_SPRAY_WINDOW_SECONDS",
         "SUSPICIOUS_SUCCESS_FAILURE_THRESHOLD",
         "SUSPICIOUS_SUCCESS_WINDOW_SECONDS",
+        "CREDENTIAL_STUFFING_IP_THRESHOLD",
+        "CREDENTIAL_STUFFING_WINDOW_SECONDS",
         "THREATLENS_WEBHOOK_URL",
         "THREATLENS_WEBHOOK_TIMEOUT_SECONDS",
         "MAX_UPLOAD_MB",
@@ -34,6 +36,8 @@ def test_loads_detection_and_upload_settings(
     monkeypatch.setenv("PASSWORD_SPRAY_WINDOW_SECONDS", "240")
     monkeypatch.setenv("SUSPICIOUS_SUCCESS_FAILURE_THRESHOLD", "4")
     monkeypatch.setenv("SUSPICIOUS_SUCCESS_WINDOW_SECONDS", "360")
+    monkeypatch.setenv("CREDENTIAL_STUFFING_IP_THRESHOLD", "7")
+    monkeypatch.setenv("CREDENTIAL_STUFFING_WINDOW_SECONDS", "240")
     monkeypatch.setenv(
         "THREATLENS_WEBHOOK_URL", "https://hooks.example.test/threatlens"
     )
@@ -49,6 +53,8 @@ def test_loads_detection_and_upload_settings(
     assert settings.password_spray_window_seconds == 240
     assert settings.suspicious_success_failure_threshold == 4
     assert settings.suspicious_success_window_seconds == 360
+    assert settings.credential_stuffing_ip_threshold == 7
+    assert settings.credential_stuffing_window_seconds == 240
     assert (
         settings.webhook_url == "https://hooks.example.test/threatlens"
     )
@@ -82,6 +88,16 @@ def test_rejects_non_integer_environment_value(
             "between 1 and 10000",
         ),
         ("SUSPICIOUS_SUCCESS_WINDOW_SECONDS", "-1", "between 1 and 86400"),
+        (
+            "CREDENTIAL_STUFFING_IP_THRESHOLD",
+            "1",
+            "between 2 and 10000",
+        ),
+        (
+            "CREDENTIAL_STUFFING_WINDOW_SECONDS",
+            "0",
+            "between 1 and 86400",
+        ),
         (
             "THREATLENS_WEBHOOK_URL",
             "ftp://hooks.example.test/x",

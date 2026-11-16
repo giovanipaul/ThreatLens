@@ -30,6 +30,7 @@ from app.auth import AuthenticatedUser, UserRole
 from app.config import DetectionSettings
 from app.detection import (
     BruteForceDetector,
+    CredentialStuffingDetector,
     PasswordSprayDetector,
     SuspiciousSuccessDetector,
 )
@@ -144,6 +145,12 @@ async def import_log(
                 seconds=settings.suspicious_success_window_seconds
             ),
         ).detect(events),
+        *CredentialStuffingDetector(
+            ip_threshold=settings.credential_stuffing_ip_threshold,
+            window=timedelta(
+                seconds=settings.credential_stuffing_window_seconds
+            ),
+        ).detect(events),
     ]
 
     summary = ImportSummary(
@@ -207,11 +214,13 @@ def list_events(
     result: AuthenticationResult | None = None,
     source_ip: IPvAnyAddress | None = None,
     limit: Annotated[int, Query(ge=1, le=1000)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[SecurityEvent]:
     return repository.list_events(
         result=result,
         source_ip=str(source_ip) if source_ip is not None else None,
         limit=limit,
+        offset=offset,
     )
 
 
@@ -222,11 +231,13 @@ def list_alerts(
     severity: AlertSeverity | None = None,
     status_filter: Annotated[AlertStatus | None, Query(alias="status")] = None,
     limit: Annotated[int, Query(ge=1, le=1000)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[ManagedAlert]:
     return repository.list_managed_alerts(
         severity=severity,
         status=status_filter,
         limit=limit,
+        offset=offset,
     )
 
 
