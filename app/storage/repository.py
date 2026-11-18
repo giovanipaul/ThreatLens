@@ -1,3 +1,4 @@
+import json
 from collections.abc import Iterable
 from datetime import timedelta
 from hashlib import sha256
@@ -276,24 +277,43 @@ class ThreatRepository:
             return len(new_records)
 
     def save_alerts(self, alerts: Iterable[SecurityAlert]) -> int:
-        records = [self._alert_to_record(alert) for alert in alerts]
-        if not records:
-            return 0
+        return len(self.save_new_alerts(alerts))
 
-        fingerprints = [record.fingerprint for record in records]
+    def save_new_alerts(self, alerts: Iterable[SecurityAlert]) -> list[SecurityAlert]:
+        pairs = [(alert, self._alert_to_record(alert)) for alert in alerts]
+        if not pairs:
+            return []
+
+        fingerprints = [record.fingerprint for _, record in pairs]
+        legacy = {
+            self._alert_fingerprint(alert, legacy=True)
+            for alert, _ in pairs if alert.alert_type == AlertType.CREDENTIAL_STUFFING
+        }
         with self.sessions.begin() as session:
-            existing = set(
-                session.scalars(
-                    select(AlertRecord.fingerprint).where(
-                        AlertRecord.fingerprint.in_(fingerprints)
+            existing = {
+                record.fingerprint: record
+                for record in session.scalars(
+                    select(AlertRecord).where(
+                        AlertRecord.fingerprint.in_(fingerprints + list(legacy))
                     )
                 )
-            )
-            new_records = [
-                record for record in records if record.fingerprint not in existing
-            ]
+            }
+            new_alerts = []
+            new_records = []
+            seen = set(existing)
+            for alert, record in pairs:
+                old = existing.get(self._alert_fingerprint(alert, legacy=True))
+                if record.fingerprint in seen or (
+                    alert.alert_type == AlertType.CREDENTIAL_STUFFING
+                    and old is not None
+                    and sorted(old.usernames) == sorted(alert.usernames)
+                ):
+                    continue
+                seen.add(record.fingerprint)
+                new_records.append(record)
+                new_alerts.append(alert)
             session.add_all(new_records)
-            return len(new_records)
+            return new_alerts
 
     def list_events(
         self,
@@ -305,7 +325,7 @@ class ThreatRepository:
     ) -> list[SecurityEvent]:
         self._validate_limit(limit)
         self._validate_offset(offset)
-        statement = select(EventRecord).order_by(EventRecord.timestamp.desc())
+        statement = select(EventRecord).order_by(EventRecord.timestamp.desc(), EventRecord.id.desc())
         if result is not None:
             statement = statement.where(EventRecord.result == result.value)
         if source_ip is not None:
@@ -326,7 +346,7 @@ class ThreatRepository:
     ) -> list[SecurityAlert]:
         self._validate_limit(limit)
         self._validate_offset(offset)
-        statement = select(AlertRecord).order_by(AlertRecord.started_at.desc())
+        statement = select(AlertRecord).order_by(AlertRecord.started_at.desc(), AlertRecord.id.desc())
         if severity is not None:
             statement = statement.where(AlertRecord.severity == severity.value)
 
@@ -352,7 +372,7 @@ class ThreatRepository:
                 AlertStateRecord,
                 AlertStateRecord.alert_id == AlertRecord.id,
             )
-            .order_by(AlertRecord.started_at.desc())
+            .order_by(AlertRecord.started_at.desc(), AlertRecord.id.desc())
         )
         if severity is not None:
             statement = statement.where(AlertRecord.severity == severity.value)
@@ -514,7 +534,7 @@ class ThreatRepository:
         )
 
     @staticmethod
-    def _alert_to_record(alert: SecurityAlert) -> AlertRecord:
+    def _alert_fingerprint(alert: SecurityAlert, *, legacy: bool = False) -> str:
         identity = "|".join(
             [
                 alert.alert_type.value,
@@ -524,8 +544,14 @@ class ThreatRepository:
                 str(alert.event_count),
             ]
         )
+        if alert.alert_type == AlertType.CREDENTIAL_STUFFING and not legacy:
+            identity += "|" + json.dumps(sorted(alert.usernames), ensure_ascii=True)
+        return sha256(identity.encode()).hexdigest()
+
+    @staticmethod
+    def _alert_to_record(alert: SecurityAlert) -> AlertRecord:
         return AlertRecord(
-            fingerprint=sha256(identity.encode()).hexdigest(),
+            fingerprint=ThreatRepository._alert_fingerprint(alert),
             alert_type=alert.alert_type.value,
             severity=alert.severity.value,
             title=alert.title,

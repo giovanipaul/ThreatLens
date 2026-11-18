@@ -6,7 +6,7 @@ import pytest
 
 from app.auth import UserRole
 from app.detection import BruteForceDetector
-from app.models.security_alert import AlertSeverity, AlertStatus
+from app.models.security_alert import AlertSeverity, AlertStatus, AlertType
 from app.models.security_event import AuthenticationResult, SecurityEvent
 from app.storage import ThreatRepository
 
@@ -89,6 +89,33 @@ def test_persists_and_filters_alerts(repository: ThreatRepository) -> None:
 
     restored = repository.list_alerts(severity=AlertSeverity.MEDIUM)
     assert restored == [alert]
+
+
+def test_distinguishes_credential_alerts_for_different_users(repository: ThreatRepository) -> None:
+    base = BruteForceDetector().detect([make_event(i) for i in range(5)])[0]
+    alice = base.model_copy(update={"alert_type": AlertType.CREDENTIAL_STUFFING, "usernames": ["alice"]})
+    bob = alice.model_copy(update={"usernames": ["bob"]})
+    assert repository.save_alerts([alice, bob, alice]) == 2
+    assert repository.save_alerts([alice, bob]) == 0
+    assert {tuple(a.usernames) for a in repository.list_alerts()} == {("alice",), ("bob",)}
+
+
+def test_legacy_credential_fingerprint_deduplicates_same_user(repository: ThreatRepository) -> None:
+    base = BruteForceDetector().detect([make_event(i) for i in range(5)])[0]
+    alice = base.model_copy(update={"alert_type": AlertType.CREDENTIAL_STUFFING, "usernames": ["alice"]})
+    record = repository._alert_to_record(alice)
+    record.fingerprint = repository._alert_fingerprint(alice, legacy=True)
+    with repository.sessions.begin() as session:
+        session.add(record)
+    bob = alice.model_copy(update={"usernames": ["bob"]})
+    assert repository.save_alerts([alice, bob]) == 1
+    assert repository.save_alerts([alice, bob]) == 0
+
+
+def test_equal_timestamp_pagination_has_deterministic_order(repository: ThreatRepository) -> None:
+    repository.save_events([make_event(source_ip=f"203.0.113.{i}") for i in range(1, 5)])
+    pages = [repository.list_events(limit=1, offset=i)[0] for i in range(4)]
+    assert [str(e.source_ip) for e in pages] == [f"203.0.113.{i}" for i in range(4, 0, -1)]
 
 
 def test_manages_alert_lifecycle(repository: ThreatRepository) -> None:

@@ -7,6 +7,7 @@ from typing import Annotated
 import httpx
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     File,
     HTTPException,
@@ -91,6 +92,7 @@ EXPLANATION_MODEL = "gpt-4o-mini"
 )
 async def import_log(
     request: Request,
+    background_tasks: BackgroundTasks,
     repository: RepositoryDependency,
     settings: SettingsDependency,
     admin: AdminDependency,
@@ -153,30 +155,25 @@ async def import_log(
         ).detect(events),
     ]
 
+    events_saved = repository.save_events(events)
+    new_alerts = repository.save_new_alerts(alerts)
     summary = ImportSummary(
         filename=file.filename or "uploaded.log",
         lines_received=len(lines),
         events_parsed=len(events),
-        events_saved=repository.save_events(events),
+        events_saved=events_saved,
         alerts_generated=len(alerts),
-        alerts_saved=repository.save_alerts(alerts),
+        alerts_saved=len(new_alerts),
     )
     if settings.webhook_url:
-        for alert in alerts:
+        for alert in new_alerts:
             if alert.severity != AlertSeverity.HIGH:
                 continue
-            if not dispatch_alert_webhook(
-                settings.webhook_url,
-                alert,
-                timeout_seconds=settings.webhook_timeout_seconds,
-            ):
-                request.app.state.logger.warning(
-                    "webhook.delivery_failed",
-                    extra={
-                        "request_id": request.state.request_id,
-                        "alert_type": alert.alert_type.value,
-                    },
-                )
+            background_tasks.add_task(
+                _deliver_webhook, settings.webhook_url, alert,
+                settings.webhook_timeout_seconds, request.app.state.logger,
+                request.state.request_id,
+            )
     repository.record_audit(
         "log.imported",
         actor_id=admin.id,
@@ -205,6 +202,14 @@ async def import_log(
         },
     )
     return summary
+
+
+def _deliver_webhook(url, alert, timeout_seconds, logger, request_id):
+    if not dispatch_alert_webhook(url, alert, timeout_seconds=timeout_seconds):
+        logger.warning(
+            "webhook.delivery_failed",
+            extra={"request_id": request_id, "alert_type": alert.alert_type.value},
+        )
 
 
 @router.get("/events", response_model=list[SecurityEvent])
