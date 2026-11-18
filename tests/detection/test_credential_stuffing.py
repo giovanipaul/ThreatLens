@@ -59,7 +59,7 @@ def test_ignores_fewer_ips_than_threshold() -> None:
     assert detector.detect(distinct_ip_events(4)) == []
 
 
-def test_ignores_failed_attempts() -> None:
+def test_detects_failed_attempts() -> None:
     detector = CredentialStuffingDetector(
         ip_threshold=5, window=timedelta(minutes=10)
     )
@@ -72,7 +72,9 @@ def test_ignores_failed_attempts() -> None:
         for minute in range(5)
     ]
 
-    assert detector.detect(events) == []
+    alerts = detector.detect(events)
+    assert len(alerts) == 1
+    assert "Authentication attempts" in alerts[0].description
 
 
 def test_ignores_ips_spread_across_users() -> None:

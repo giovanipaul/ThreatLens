@@ -435,6 +435,13 @@ def test_posts_high_alerts_to_configured_webhook(
     assert delivered[0][0] == "https://hooks.example.test/threatlens"
     assert delivered[0][1].severity.value == "high"
 
+    repeated = webhook_client.post(
+        "/api/logs/import?year=2026",
+        files={"file": ("auth.log", brute_force_log(), "text/plain")},
+    )
+    assert repeated.json()["alerts_saved"] == 0
+    assert len(delivered) == 1
+
 
 def test_does_not_post_medium_alerts_to_webhook(
     webhook_client: TestClient,

@@ -7,7 +7,7 @@ from app.models.security_event import AuthenticationResult, SecurityEvent
 
 
 class CredentialStuffingDetector:
-    """Detect one username authenticating from many distinct source IPs."""
+    """Flag distributed authentication attempts against one username."""
 
     def __init__(
         self,
@@ -23,15 +23,15 @@ class CredentialStuffingDetector:
         self.window = window
 
     def detect(self, events: list[SecurityEvent]) -> list[SecurityAlert]:
-        successes_by_user: dict[str, list[SecurityEvent]] = defaultdict(list)
+        attempts_by_user: dict[str, list[SecurityEvent]] = defaultdict(list)
 
         for event in events:
-            if event.result == AuthenticationResult.SUCCESS:
-                successes_by_user[event.username].append(event)
+            if event.result in {AuthenticationResult.SUCCESS, AuthenticationResult.FAILURE}:
+                attempts_by_user[event.username].append(event)
 
         alerts = []
-        for username, successes in successes_by_user.items():
-            suspicious_window = self._most_diverse_window(successes)
+        for username, attempts in attempts_by_user.items():
+            suspicious_window = self._most_diverse_window(attempts)
             source_ips = {event.source_ip for event in suspicious_window}
             if len(source_ips) >= self.ip_threshold:
                 alerts.append(
@@ -46,7 +46,7 @@ class CredentialStuffingDetector:
     ) -> list[SecurityEvent]:
         ordered = sorted(successes, key=lambda event: event.timestamp)
         ip_counts: Counter[IPv4Address | IPv6Address] = Counter()
-        best: list[SecurityEvent] = []
+        best_left = best_right = 0
         best_unique_count = 0
         left = 0
 
@@ -60,15 +60,14 @@ class CredentialStuffingDetector:
                     del ip_counts[expired_ip]
                 left += 1
 
-            candidate = ordered[left : right + 1]
             unique_count = len(ip_counts)
             if unique_count > best_unique_count or (
-                unique_count == best_unique_count and len(candidate) > len(best)
+                unique_count == best_unique_count and right + 1 - left > best_right - best_left
             ):
-                best = candidate
+                best_left, best_right = left, right + 1
                 best_unique_count = unique_count
 
-        return best
+        return ordered[best_left:best_right]
 
     def _create_alert(
         self,
@@ -89,9 +88,10 @@ class CredentialStuffingDetector:
             severity=severity,
             title="Possible credential-stuffing attack",
             description=(
-                f"Successful authentication for {username} from "
+                f"Authentication attempts for {username} from "
                 f"{unique_count} distinct source IPs "
-                f"({', '.join(ordered_ips)}) within {self._format_window()}."
+                f"({', '.join(ordered_ips)}) within {self._format_window()}; "
+                "verify whether the activity is legitimate."
             ),
             source_ip=events[-1].source_ip,
             started_at=events[0].timestamp,

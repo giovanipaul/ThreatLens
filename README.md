@@ -98,7 +98,7 @@ responsibilities separate so that each layer remains independently testable.
 | Brute force | Repeated failures from one source within a configurable window | Medium or high alert with attempt count and targeted users |
 | Password spray | One source attempts authentication across several usernames | Structured password-spraying alert |
 | Suspicious success | A successful login follows repeated failures from the same source | Correlated successful-login alert |
-| Credential stuffing | One username authenticates successfully from many distinct source IPs | Structured credential-stuffing alert |
+| Distributed authentication | One username receives successful or failed authentication attempts from many distinct IPs | Possible credential-stuffing alert; verify context because legitimate activity may match |
 
 Thresholds and time windows are defined in the detection modules and can be
 adjusted through validated environment settings without changing code.
@@ -125,12 +125,14 @@ not cover other applications using the same API key.
 
 ### Outbound webhook alerts
 
-Set `THREATLENS_WEBHOOK_URL` in the server environment to post every
-high-severity alert to a generic webhook as JSON after a log import. The
+Set `THREATLENS_WEBHOOK_URL` in the server environment to post newly saved
+high-severity alerts to a generic webhook as JSON after a log import. Delivery
+runs in a background thread after the response, is best-effort, and is not
+retried or guaranteed if the process stops. The
 payload carries the event name `threatlens.alert.high` plus the alert type,
 severity, title, description, source IP, time range, event count, and
 usernames. Leave the URL unset to disable delivery. A failed delivery is
-logged and never blocks the import. Keep the URL in the server environment
+logged and does not delay the import response. Keep the URL in the server environment
 only; never commit a webhook URL that carries a secret token.
 
 Copy `.env.example` to `.env` for Docker Compose, or export the settings before
