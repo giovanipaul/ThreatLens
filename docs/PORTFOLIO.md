@@ -13,6 +13,9 @@ PostgreSQL, Jinja2, JavaScript, Prometheus, Docker, and GitHub Actions.
 
 **Repository:** <https://github.com/giovanipaul/ThreatLens>
 
+**Live preview:** <https://threatlens-5c5k.onrender.com/demo> (public,
+read-only sample data; the full application requires authentication).
+
 ## Problem and approach
 
 Raw authentication logs are difficult to review consistently and provide no
@@ -21,8 +24,9 @@ independently testable layers:
 
 1. A bounded upload endpoint validates file type, size, line count, and UTF-8.
 2. A parser converts supported OpenSSH records into validated domain models.
-3. Three detection strategies identify brute force, password spraying, and a
-   successful login following repeated failures.
+3. Four detection strategies identify brute force, password spraying, a
+   successful login following repeated failures, and distributed authentication
+   attempts against one account.
 4. A repository layer deduplicates and persists events, alerts, users, sessions,
    audit records, and immutable alert history.
 5. Protected APIs and a dashboard support investigation, filtering, exports,
@@ -32,10 +36,11 @@ independently testable layers:
 
 ## Evidence-backed outcomes
 
-- Maintains **98.29% application-code coverage**, above the enforced 95% gate.
-- Passes **106 test cases**, including API, authentication, detection,
-  persistence, migrations, observability, and PostgreSQL integration behavior.
-- Implements **three correlation rules** with bounded, environment-validated
+- The November 18, 2026 CI run passed **161 tests** with **98.47%
+  application-code coverage**, above the enforced 95% gate. Tests cover API,
+  authentication, detection, persistence, migrations, observability, and
+  PostgreSQL integration behavior.
+- Implements **four detection rules** with bounded, environment-validated
   thresholds and time windows.
 - Enforces administrator and analyst roles across dashboard and API operations.
 - Uses salted scrypt password hashes and stores only SHA-256 session-token
@@ -99,7 +104,7 @@ Choose two or three bullets that best match the target role.
 ### Backend and security
 
 - Built a FastAPI security-log analysis platform that normalizes OpenSSH events,
-  runs three correlation rules, prevents duplicate ingestion, and supports an
+  runs four detection rules, prevents duplicate ingestion, and supports an
   auditable alert-investigation workflow across SQLite and PostgreSQL.
 - Implemented secure authentication with salted scrypt hashes, database-backed
   sessions, CSRF protection, login throttling, analyst/admin RBAC, account
